@@ -1,0 +1,1523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CoolReelTool</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two-column editing desk — stacked control sections (left), sticky 9:16 monitor with transport + export (right); one column on phones */
+:root{
+  --bg:#eceef1; --panel:#ffffff; --ink:#121417; --muted:#626a75; --line:#dbdfe5; --well:#f2f4f6;
+  --rec:#e2453f; --rec-ink:#ffffff; --focus:#2f6fe4; --ok:#198a4b;
+  --f-ui:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c0e11; --panel:#15181d; --ink:#e8ebee; --muted:#8e96a1; --line:#262b33; --well:#1c2026;
+  --rec:#ff5b55; --rec-ink:#1b0807; --focus:#6b9cff; --ok:#3cc47a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c0e11; --panel:#15181d; --ink:#e8ebee; --muted:#8e96a1; --line:#262b33; --well:#1c2026;
+  --rec:#ff5b55; --rec-ink:#1b0807; --focus:#6b9cff; --ok:#3cc47a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+h1,h2{margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.top{max-width:1180px;margin:0 auto 16px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.top h1{font-size:22px;font-weight:800;letter-spacing:-.015em}
+.top p{margin:0;color:var(--muted)}
+
+.desk{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.desk{grid-template-columns:minmax(0,1fr)}.monitor{position:static!important}}
+
+.controls{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.sec-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sec-h h2,.sec > h2{font-size:15px;font-weight:700}
+.opt{font:500 10px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.label{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row > .field{flex:1 1 140px}
+textarea,input[type=text]{width:100%;background:var(--well);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
+textarea{resize:vertical;line-height:1.45}
+.hint{font-size:12px;color:var(--muted)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--well)}
+.seg button{border:0;background:transparent;padding:7px 12px;cursor:pointer;color:var(--muted);font-weight:600;font-size:13px}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:8px 13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.rec{background:var(--rec);border-color:var(--rec);color:var(--rec-ink)}
+.btn.rec:hover{filter:brightness(1.07)}
+.btn.on{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.btn svg{width:16px;height:16px;flex:none}
+
+/* switch */
+.switch{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted)}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch i{width:34px;height:20px;border-radius:20px;background:var(--line);position:relative;transition:background .15s}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--panel);transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked + i{background:var(--focus)}
+.switch input:checked + i::after{transform:translateX(14px)}
+.switch input:focus-visible + i{outline:2px solid var(--focus);outline-offset:2px}
+
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;display:block}
+.drop:hover,.drop.over{border-color:var(--focus);color:var(--focus)}
+.file{display:flex;align-items:center;gap:10px;background:var(--well);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.file .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.mono{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--focus)}
+
+.avatar-pick{display:flex;align-items:center;gap:12px}
+.avatar-pick canvas{width:48px;height:48px;border-radius:50%;flex:none;background:var(--well)}
+.lock-body{display:flex;flex-direction:column;gap:12px}
+
+/* monitor */
+.monitor{position:sticky;top:max(12px,env(safe-area-inset-top,0px));background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
+.screen{height:min(72vh,760px);aspect-ratio:9/16;max-width:100%;border-radius:16px;overflow:hidden;background:#000;box-shadow:0 0 0 1px var(--line),0 20px 40px -24px rgba(0,0,0,.6);position:relative}
+@media (max-width:860px){.screen{height:auto;width:min(100%,380px)}}
+.screen canvas{width:100%;height:100%;display:block}
+.screen.can-crop canvas{touch-action:none}
+.btn.small{padding:4px 10px;font-size:12px}
+.trim-head{position:absolute;top:3px;bottom:3px;width:3px;margin-left:-1px;background:var(--rec);border-radius:2px;pointer-events:none}
+.trim-acts{display:flex;gap:8px}
+.trim-acts .btn{flex:1;justify-content:center}
+.cutbadge{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 9px;border-radius:5px;pointer-events:none;white-space:nowrap}
+.trim{position:relative;height:30px}
+.trim::before{content:"";position:absolute;left:0;right:0;top:12px;height:6px;border-radius:6px;background:var(--well);border:1px solid var(--line)}
+.trim-sel{position:absolute;top:12px;height:6px;background:var(--focus);border-radius:6px}
+.trim input{position:absolute;left:0;top:0;width:100%;height:30px;margin:0;background:none;pointer-events:none;-webkit-appearance:none;appearance:none}
+.trim input::-webkit-slider-runnable-track{background:none}
+.trim input::-moz-range-track{background:none}
+.trim input::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:14px;height:26px;border-radius:4px;background:var(--ink);border:2px solid var(--panel);cursor:ew-resize}
+.trim input::-moz-range-thumb{pointer-events:auto;width:10px;height:22px;border-radius:4px;background:var(--ink);border:2px solid var(--panel);cursor:ew-resize}
+.trim input:focus-visible::-webkit-slider-thumb{outline:2px solid var(--focus);outline-offset:2px}
+.screen.over-video canvas{cursor:grab}
+.screen.dragging canvas{cursor:grabbing}
+.guides{position:absolute;inset:0;pointer-events:none;display:none}
+.guides.show{display:block}
+.guides span{position:absolute;top:0;bottom:0;border-left:1px dashed rgba(128,128,128,.75)}
+.swatch{display:flex;align-items:center;gap:8px}
+.swatch input[type=color]{width:40px;height:36px;padding:2px;border:1px solid var(--line);border-radius:7px;background:var(--well);cursor:pointer;flex:none}
+.transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;width:100%}
+.transport .grow{flex:1 1 0;min-width:0}
+.scrub{width:min(100%,520px);display:flex;align-items:center;gap:10px}
+.export{width:min(100%,520px);display:flex;flex-direction:column;gap:8px}
+.bar{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.bar div{height:100%;width:0;background:var(--rec);border-radius:8px;transition:width .2s linear}
+.xp{background:var(--well);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.xp-top{display:flex;align-items:center;gap:10px}
+.xp-title{font-weight:700;font-size:15px;flex:1}
+.xp-dot{width:10px;height:10px;border-radius:50%;background:var(--rec);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+#xpPct{font:500 22px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.xp-bot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.xp .btn{align-self:stretch;justify-content:center}
+.result{display:flex;align-items:center;gap:14px;background:var(--well);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.result canvas{width:54px;height:96px;border-radius:7px;background:#000;flex:none;box-shadow:0 0 0 1px var(--line)}
+.result .grow{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.res-title{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px}
+.res-title i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 11px var(--f-mono);padding:2px 7px;border-radius:4px;border:1px solid var(--line);color:var(--muted);background:var(--panel)}
+.locked{opacity:.4;transition:opacity .2s}
+.badges{display:flex;gap:10px;flex-wrap:wrap}
+.badges button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);cursor:pointer;padding:0}
+.badges button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+.safezones{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.recbadge{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;background:#e2453f;color:#fff;font:500 11px var(--f-mono);letter-spacing:.1em;padding:5px 9px;border-radius:5px;pointer-events:none}
+.recbadge i{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.xp-dot,.recbadge i{animation:none}}
+.status{font-size:13px;color:var(--muted);text-align:center;min-height:1.4em}
+/* tabs, profiles, queue */
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{flex:1 1 auto;border:0;background:transparent;border-radius:7px;padding:9px 10px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--panel)}
+.tabs .count{font:500 11px var(--f-mono);background:var(--rec);color:var(--rec-ink);border-radius:999px;padding:1px 7px}
+.tabpanel{display:flex;flex-direction:column;gap:12px;min-width:0}
+select{width:100%;background:var(--well);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:22px 12px;border:1.5px dashed var(--line);border-radius:10px;background:var(--panel)}
+.pcard,.qcard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.pcard{cursor:pointer;transition:border-color .15s}
+.pcard:hover{border-color:var(--muted)}
+.pcard.active{border-color:var(--focus);box-shadow:inset 0 0 0 1px var(--focus)}
+.pcard .ptitle{cursor:text}
+.pav{width:44px;height:44px;border-radius:50%;background:#3a3f47;color:#c9ced6;display:grid;place-items:center;font-weight:700;overflow:hidden}
+.pav img{width:100%;height:100%;object-fit:cover}
+.pmain{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pmain .ptitle{font-weight:700;padding:5px 8px}
+.psub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pswatch{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sw{width:18px;height:18px;border-radius:4px;border:1px solid var(--line)}
+.sw.round{border-radius:50%}
+.pacts{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.qcard img{width:54px;height:96px;border-radius:6px;background:#000;object-fit:cover}
+.qhl{font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.chip.live{border-color:var(--rec);color:var(--rec)}
+.chip.bad{background:var(--rec);border-color:var(--rec);color:var(--rec-ink)}
+.aitext{margin:0;line-height:1.55}
+.ailist{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
+.hookline{background:var(--well);border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-weight:600;line-height:1.35}
+.idea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.idea h3{margin:0;font-size:16px;line-height:1.3;text-wrap:balance}
+.idea-hl{all:unset;display:block;cursor:pointer;border-radius:7px;padding:6px 8px;margin:-6px -8px;transition:background .15s}
+.idea-hl:hover{background:var(--well)}
+.idea-hl:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.idea-hl small{display:block;margin-top:4px;font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);opacity:0;transition:opacity .15s}
+.idea-hl:hover small,.idea-hl:focus-visible small{opacity:1}
+.idea h3 mark{background:none;color:var(--focus)}
+.idea-row{display:flex;flex-direction:column;gap:3px}
+.idea-row p{margin:0;line-height:1.45}
+.idea .cap{white-space:pre-wrap}
+.ai-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 4px}
+.ai-head h2{font-size:15px}
+.qfoot{display:flex;gap:8px;flex-wrap:wrap}
+.tchips{display:flex;gap:6px;flex-wrap:wrap}
+.tchips button{border:1px solid var(--line);background:var(--well);color:var(--ink);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer}
+.tchips button:hover{border-color:var(--muted)}
+.tchips button[aria-pressed="true"]{background:var(--focus);border-color:var(--focus);color:#fff}
+.qfoot .btn{flex:1 1 auto;justify-content:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <h1>CoolReelTool</h1>
+  <p>Headline, video, profile lockup and byline in a 9:16 reel. The reel runs as long as your video.</p>
+</header>
+
+<main class="desk">
+  <div class="controls">
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="editor" aria-selected="true">Editor</button>
+      <button role="tab" data-tab="profiles" aria-selected="false">Profiles</button>
+      <button role="tab" data-tab="queue" aria-selected="false">Queue <span class="count" id="qCount" hidden></span></button>
+      <button role="tab" data-tab="ai" aria-selected="false">AI Ideas</button>
+      <button role="tab" data-tab="rewrite" aria-selected="false">Rewrite</button>
+    </div>
+
+    <div class="tabpanel" id="tab-editor">
+    <!-- Page profile -->
+    <section class="sec">
+      <div class="sec-h"><h2>Page profile</h2><button class="btn small" id="profNew">New profile</button></div>
+      <select id="profSel" aria-label="Page profile"></select>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <span class="hint" style="flex:1 1 180px">Switch pages in one tap. Edits don't change the profile until you save them.</span>
+        <button class="btn small" id="profUpdate">Save changes to profile</button>
+      </div>
+    </section>
+
+    <!-- Background -->
+    <section class="sec">
+      <div class="sec-h"><h2>Background</h2>
+        <div class="seg" id="bgSeg" role="group" aria-label="Background">
+          <button data-v="black">Black</button><button data-v="white">White</button>
+        </div>
+      </div>
+      <span class="hint">On white, all text switches to black.</span>
+    </section>
+
+    <!-- Headline -->
+    <section class="sec">
+      <div class="sec-h"><h2>Headline</h2>
+        <div class="seg" id="sizeSeg" role="group" aria-label="Headline size">
+          <button data-v="S">S</button><button data-v="M">M</button><button data-v="L">L</button>
+        </div>
+      </div>
+      <textarea id="headline" rows="3" aria-label="Headline"></textarea>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <span class="hint">Press Enter to force a line break.</span>
+        <div class="seg" id="hAlignSeg" role="group" aria-label="Headline alignment">
+          <button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="hlWords">Highlight words</label>
+        <div class="swatch">
+          <input type="text" id="hlWords" placeholder="e.g. AI, talk to AI">
+          <input type="color" id="hlColor" aria-label="Highlight color">
+        </div>
+        <span class="hint">Separate words or phrases with commas. Matching ignores case and punctuation.</span>
+      </div>
+    </section>
+
+    <!-- Video -->
+    <section class="sec">
+      <div class="sec-h"><h2>Video</h2><span class="mono" id="vidLen">No video</span></div>
+      <label class="drop" id="drop" for="vidIn">Drop a video here, or click to choose one</label>
+      <div class="file" id="vidFile" hidden>
+        <span class="name" id="vidName"></span>
+        <label class="btn" for="vidIn">Replace</label>
+        <button class="btn" id="vidRemove">Remove</button>
+      </div>
+      <input type="file" id="vidIn" accept="video/*" hidden>
+      <div class="field" id="cropBox" hidden>
+        <div class="sec-h">
+          <label class="label" for="zoom">Crop · zoom <span id="zoomVal">100%</span></label>
+          <button class="btn" id="cropReset" style="padding:4px 10px;font-size:12px">Reset</button>
+        </div>
+        <input type="range" id="zoom" min="100" max="300" step="1" value="100">
+        <span class="hint">Drag the video in the preview to move it. Scroll over it to zoom.</span>
+      </div>
+      <div class="field">
+        <span class="label">Frame</span>
+        <div class="seg" id="aspectSeg" role="group" aria-label="Video frame">
+          <button data-v="16:9">16:9</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="margin">Side margin <span id="marginVal"></span></label>
+        <input type="range" id="margin" min="0" max="16" step="1">
+        <div class="row" style="gap:16px">
+          <label class="switch"><input type="checkbox" id="guides"><i></i>Show margin guides</label>
+          <label class="switch"><input type="checkbox" id="safe"><i></i>Show app safe zones</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profile lockup -->
+    <section class="sec">
+      <div class="sec-h"><h2>Profile lockup</h2>
+        <label class="switch"><input type="checkbox" id="lockOn"><i></i><span class="opt">Optional</span></label>
+      </div>
+      <div class="lock-body" id="lockBody">
+        <div class="avatar-pick">
+          <canvas id="avPrev" width="96" height="96"></canvas>
+          <label class="btn" for="avIn">Change photo</label>
+          <button class="btn" id="avRemove" hidden>Remove</button>
+          <input type="file" id="avIn" accept="image/*" hidden>
+        </div>
+        <div class="row">
+          <div class="field"><label class="label" for="pName">Name</label><input type="text" id="pName"></div>
+          <div class="field"><label class="label" for="pUser">Username</label><input type="text" id="pUser"></div>
+        </div>
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <label class="switch"><input type="checkbox" id="pVerified"><i></i>Verified badge</label>
+          <div class="seg" id="alignSeg" role="group" aria-label="Lockup alignment">
+            <button data-v="left">Left</button><button data-v="center">Center</button>
+          </div>
+        </div>
+        <div class="field" id="badgeField">
+          <span class="label">Badge color</span>
+          <div class="badges" id="badgeSeg" role="group" aria-label="Badge color">
+            <button data-v="#1d9bf0" style="background:#1d9bf0" aria-label="Blue" title="Blue"></button>
+            <button data-v="#f2b705" style="background:#f2b705" aria-label="Yellow" title="Yellow"></button>
+            <button data-v="#00ba7c" style="background:#00ba7c" aria-label="Green" title="Green"></button>
+            <button data-v="#f4212e" style="background:#f4212e" aria-label="Red" title="Red"></button>
+            <button data-v="#ffffff" style="background:#ffffff" aria-label="White" title="White"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Byline -->
+    <section class="sec">
+      <div class="sec-h"><h2>Byline</h2><span class="opt">Optional</span></div>
+      <input type="text" id="byline" aria-label="Byline" placeholder="e.g. Video: @source">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <span class="hint">Small grey line under the video. Leave empty to hide it.</span>
+        <div class="seg" id="blAlignSeg" role="group" aria-label="Byline alignment">
+          <button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button>
+        </div>
+      </div>
+    </section>
+    </div>
+
+    <div class="tabpanel" id="tab-profiles" hidden>
+      <section class="sec">
+        <div class="sec-h"><h2>Save current look as a profile</h2></div>
+        <div class="swatch">
+          <input type="text" id="profTitle" placeholder="e.g. Evidence of Aliens" aria-label="New profile name">
+          <button class="btn rec" id="profSaveBtn">Save</button>
+        </div>
+        <span class="hint">Saves the background, headline size and alignment, highlight color, frame, side margin, profile lockup (photo, name, username, badge) and byline. Click a profile's name to rename it.</span>
+      </section>
+      <div id="profList" class="tabpanel"></div>
+    </div>
+
+    <div class="tabpanel" id="tab-queue" hidden>
+      <section class="sec">
+        <div class="sec-h"><h2>Queue</h2></div>
+        <span class="hint">Build a reel in the Editor and press Add to queue. Repeat for each reel, then export them all in one go. Queued videos only live in this tab, so export before you close the page.</span>
+        <div class="qfoot">
+          <button class="btn rec" id="qExport"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="5"/></svg><span>Export all</span></button>
+          <button class="btn" id="qZip" hidden>Save as .zip</button>
+          <button class="btn" id="qClear" hidden>Clear exported</button>
+        </div>
+      </section>
+      <div id="qList" class="tabpanel"></div>
+    </div>
+
+    <div class="tabpanel" id="tab-ai" hidden>
+      <section class="sec">
+        <div class="sec-h"><h2>AI ideas</h2><span class="opt">Beta</span></div>
+        <div class="field"><label class="label" for="aiPage">Page</label><select id="aiPage"></select></div>
+        <div class="field">
+          <div class="sec-h"><span class="label">Topics for this page</span><button class="btn small" id="aiMore">More topics</button></div>
+          <div class="tchips" id="aiTopics"></div>
+          <span class="hint">Tap topics to add them to the niche. Tap again to remove.</span>
+        </div>
+        <div class="field"><label class="label" for="aiNiche">Niche</label><textarea id="aiNiche" rows="2" placeholder="e.g. UFO sightings, alien theories and unexplained footage"></textarea></div>
+        <div class="field"><label class="label" for="aiNotes">Audience or notes <span class="opt">Optional</span></label>
+          <div class="tchips" id="aiAud"></div>
+          <input type="text" id="aiNotes" placeholder="e.g. US audience, 18–34, loves mystery and debate"></div>
+        <div class="qfoot"><button class="btn rec" id="aiGo">Research my niche</button><button class="btn" id="aiStop" hidden>Stop</button></div>
+        <span class="hint" id="aiState">The AI studies your niche and writes reel ideas: headlines, clips to look for, where to find them, captions and hashtags.</span>
+      </section>
+      <div id="aiOut" class="tabpanel"></div>
+    </div>
+
+    <div class="tabpanel" id="tab-rewrite" hidden>
+      <section class="sec">
+        <div class="sec-h"><h2>Rewrite an idea</h2><span class="mono" id="rwPage"></span></div>
+        <div class="field">
+          <label class="label" for="rwIdea">Your idea</label>
+          <textarea id="rwIdea" rows="3" placeholder="e.g. do a post for Silly Bandz, I have an old commercial for them"></textarea>
+        </div>
+        <div class="field">
+          <span class="label">Tone <span class="opt">Optional</span></span>
+          <div class="tchips" id="rwTone"></div>
+        </div>
+        <div class="qfoot"><button class="btn rec" id="rwGo">Write headlines</button><button class="btn" id="rwStop" hidden>Stop</button></div>
+        <span class="hint" id="rwState">Type it however it comes to you. You'll get headlines built to stop the scroll. Click one to send it to the editor.</span>
+      </section>
+      <div id="rwOut" class="tabpanel"></div>
+    </div>
+  </div>
+
+  <!-- Monitor -->
+  <section class="monitor" aria-label="Preview">
+    <div class="screen">
+      <canvas id="stage" width="1080" height="1920"></canvas>
+      <div class="guides" id="guideBox"><span id="gL"></span><span id="gR"></span></div>
+      <div class="cutbadge" id="cutBadge" hidden>Trimmed out · not in export</div>
+      <!-- preview-only overlay: areas the reels app covers with its own buttons and text; never recorded -->
+      <svg class="safezones" id="safeBox" viewBox="0 0 1080 1920" preserveAspectRatio="none" hidden aria-hidden="true">
+        <path fill="#ff5a5f" fill-opacity=".38" fill-rule="evenodd" d="M0 0H1080V1920H0Z M140 107H1032V1128H890V1728H803V1601H48V230H140Z"/>
+        <g fill="#7a2f33" fill-opacity=".28">
+          <rect x="169" y="37" width="90" height="40"/><rect x="759" y="45" width="215" height="43"/><rect x="90" y="156" width="32" height="47"/>
+          <rect x="919" y="1157" width="72" height="72"/><rect x="919" y="1253" width="72" height="34"/>
+          <rect x="919" y="1338" width="72" height="72"/><rect x="919" y="1430" width="72" height="34"/>
+          <rect x="919" y="1521" width="72" height="72"/><rect x="919" y="1613" width="72" height="34"/>
+          <rect x="923" y="1712" width="62" height="30"/><rect x="911" y="1798" width="90" height="90"/>
+          <rect x="85" y="1617" width="112" height="112"/><rect x="208" y="1625" width="317" height="47"/><rect x="208" y="1677" width="400" height="35"/>
+          <rect x="621" y="1638" width="162" height="71"/><rect x="79" y="1756" width="756" height="42"/><rect x="81" y="1829" width="400" height="42"/>
+        </g>
+      </svg>
+      <div class="recbadge" id="recBadge" hidden><i></i>REC</div>
+    </div>
+
+    <div class="scrub">
+      <span class="mono" id="tNow">0:00.0</span>
+      <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek" class="grow">
+      <span class="mono" id="tDur">0:00.0</span>
+    </div>
+
+    <div class="transport">
+      <button class="btn" id="playBtn"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg><span>Play</span></button>
+      <button class="btn" id="muteBtn" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3h-2.5z" fill="currentColor" stroke="none"/><path id="muteWave" d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4"/></svg><span>Sound on</span></button>
+      <button class="btn" id="queueBtn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h9M2 8h9M2 12h5M12.5 9v5M10 11.5h5"/></svg><span>Add to queue</span></button>
+      <button class="btn rec" id="exportBtn"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="5"/></svg><span>Export reel</span></button>
+    </div>
+
+    <div class="export" id="trimBox" hidden>
+      <div class="sec-h">
+        <span class="label">Trim · <span id="trimVal"></span></span>
+        <button class="btn small" id="trimReset">Reset</button>
+      </div>
+      <div class="trim-acts" id="trimActs">
+        <button class="btn" id="setIn">Trim start here</button>
+        <button class="btn" id="setOut">Trim end here</button>
+      </div>
+      <span class="hint" id="trimHint" hidden>Pause where you want to cut.</span>
+      <div class="trim">
+        <div class="trim-sel" id="trimSel"></div>
+        <div class="trim-head" id="trimHead"></div>
+        <input type="range" id="trimA" min="0" max="1000" value="0" aria-label="Trim start">
+        <input type="range" id="trimB" min="0" max="1000" value="1000" aria-label="Trim end">
+      </div>
+      <div class="sec-h"><span class="mono" id="trimAT">0:00.0</span><span class="mono" id="trimBT">0:00.0</span></div>
+    </div>
+
+    <div class="export">
+      <div class="xp" id="xp" hidden>
+        <div class="xp-top"><span class="xp-dot"></span><span class="xp-title">Exporting reel</span><span id="xpPct">0%</span></div>
+        <div class="bar"><div id="barFill"></div></div>
+        <div class="xp-bot"><span class="mono" id="xpTime">0:00.0 of 0:00.0</span><span class="mono" id="xpLeft"></span></div>
+        <button class="btn" id="cancelBtn">Cancel export</button>
+      </div>
+      <div class="result" id="result" hidden>
+        <canvas id="resThumb" width="108" height="192"></canvas>
+        <div class="grow">
+          <div class="res-title"><i></i>Reel ready</div>
+          <div class="chips" id="resultText"></div>
+        </div>
+        <button class="btn rec" id="saveBtn">Save</button>
+      </div>
+      <div class="status" id="status">Add a video to export.</div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const W = 1080, H = 1920;
+const SANS = `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+
+// ---------- state ----------
+const DEFAULTS = {
+  headline: "MIT student creates device that allows you to talk to AI telepathically",
+  size: "M", aspect: "16:9", margin: 6, guides: false,
+  lockOn: true, name: "Your Page", user: "@yourpage", verified: true, align: "left",
+  byline: "Video: @source", blAlign: "center", muted: false,
+  safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "center", hlWords: "telepathically", hlColor: "#1d9bf0"
+};
+const S = { ...DEFAULTS };
+try { Object.assign(S, JSON.parse(localStorage.getItem("reeldesk:v2") || "{}")); } catch(e) {}
+const save = () => { try { localStorage.setItem("reeldesk:v2", JSON.stringify(S)); } catch(e) {} };
+let avatar = null, hasVideo = false, exporting = false, lastExport = null;
+// crop: zoom is relative to "fill the frame"; px/py place the video within its overflow (0 = left/top edge, 0.5 = centered, 1 = right/bottom edge)
+const crop = { zoom: 1, px: 0.5, py: 0.5 };
+let lastBox = null;
+const trim = { start: 0, end: 0 }, MIN_LEN = 0.5;
+let exportDone = null, smoothExport = false, staticPaint = null, lastXpUi = 0, exportWasHidden = false;
+function resetCrop(){ crop.zoom = 1; crop.px = 0.5; crop.py = 0.5; $("#zoom").value = 100; $("#zoomVal").textContent = "100%"; }
+function videoRect(box){
+  const iw = vid.videoWidth, ih = vid.videoHeight, s = Math.max(box.w/iw, box.h/ih) * crop.zoom;
+  const dw = iw*s, dh = ih*s;
+  return { x: box.x - (dw - box.w)*crop.px, y: box.y - (dh - box.h)*crop.py, w: dw, h: dh };
+}
+
+// ---------- video + audio ----------
+const vid = document.createElement("video");
+vid.playsInline = true; vid.loop = true; vid.muted = true; vid.preload = "auto";
+let actx = null, gainNode = null, audioDest = null;
+function ensureAudio(){
+  if (actx) { actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = actx.createMediaElementSource(vid);
+    gainNode = actx.createGain(); audioDest = actx.createMediaStreamDestination();
+    src.connect(gainNode); gainNode.connect(actx.destination); gainNode.connect(audioDest);
+    vid.muted = false;
+  } catch(e) { actx = null; }
+  applyMute();
+}
+function applyMute(){
+  if (gainNode) gainNode.gain.value = S.muted ? 0 : 1; else vid.muted = true;
+  const b = $("#muteBtn"); b.setAttribute("aria-pressed", S.muted); b.classList.toggle("on", S.muted);
+  b.querySelector("span").textContent = S.muted ? "Muted" : "Sound on";
+  $("#muteWave").style.display = S.muted ? "none" : "";
+}
+
+let curFile = null;
+// load a file into the player; resolves once its size and length are known
+function setVideo(file){
+  return new Promise((resolve, reject) => {
+    if (vid.src) URL.revokeObjectURL(vid.src);
+    vid.src = URL.createObjectURL(file);
+    vid.onloadedmetadata = () => {
+      curFile = file; hasVideo = true;
+      $("#vidName").textContent = file.name;
+      $("#vidLen").textContent = "Length " + fmt(vid.duration);
+      $("#drop").hidden = true; $("#vidFile").hidden = false;
+      lastExport = null; $("#result").hidden = true;
+      resolve();
+    };
+    vid.onerror = () => reject(new Error("unplayable"));
+  });
+}
+function loadVideo(file){
+  if (!file || !file.type.startsWith("video/")) { status("That file isn't a video. Choose an MP4, MOV or WebM."); return; }
+  setVideo(file).then(() => {
+    resetCrop(); resetTrim(); refresh();
+    status("Ready. Export runs in real time, so keep this tab open.");
+  }).catch(() => status("This browser can't play that video. Try an MP4 (H.264)."));
+}
+function clearVideo(){
+  vid.pause(); if (vid.src) URL.revokeObjectURL(vid.src); vid.removeAttribute("src"); vid.load();
+  hasVideo = false; curFile = null; $("#drop").hidden = false; $("#vidFile").hidden = true; $("#vidLen").textContent = "No video";
+  $("#result").hidden = true; lastExport = null; setPlaying(false); refresh();
+}
+$("#vidIn").addEventListener("change", e => { loadVideo(e.target.files[0]); e.target.value = ""; });
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => loadVideo(e.dataTransfer.files[0]));
+$("#vidRemove").onclick = () => { clearVideo(); status("Add a video to export."); };
+
+// placeholder clock when there's no video
+let clock = { t: 0, last: performance.now(), playing: false };
+const PH_DUR = 10;
+// preview plays the whole video so you can find cut points; export uses only the trimmed part
+const dur = () => hasVideo ? (vid.duration || 0) : PH_DUR;
+const curT = () => hasVideo ? vid.currentTime : clock.t;
+const isPlaying = () => hasVideo ? !vid.paused : clock.playing;
+function setPlaying(on){
+  if (hasVideo) { if (on) { ensureAudio(); vid.play().catch(()=>{}); } else vid.pause(); }
+  else clock.playing = on;
+  updatePlayBtn();
+}
+function updatePlayBtn(){
+  const p = isPlaying(), b = $("#playBtn");
+  b.querySelector("span").textContent = p ? "Pause" : "Play";
+  b.querySelector("svg").innerHTML = p ? '<path d="M4 3h3v10H4zM9 3h3v10H9z"/>' : '<path d="M4 2.5v11l9-5.5z"/>';
+  updateTrimActs();
+}
+function updateTrimActs(){
+  const paused = hasVideo && vid.paused && !exporting;
+  $("#trimActs").hidden = !paused; $("#trimHint").hidden = paused || !hasVideo || exporting;
+}
+vid.addEventListener("play", updatePlayBtn); vid.addEventListener("pause", updatePlayBtn);
+$("#playBtn").onclick = () => setPlaying(!isPlaying());
+$("#seek").addEventListener("input", e => {
+  const t = (e.target.value / 1000) * dur();
+  if (hasVideo) vid.currentTime = t; else clock.t = t;
+});
+
+// ---------- trim ----------
+function resetTrim(){ trim.start = 0; trim.end = vid.duration || 0; syncTrim(); }
+function syncTrim(){
+  const d = vid.duration || 1;
+  $("#trimA").value = Math.round(trim.start / d * 1000); $("#trimB").value = Math.round(trim.end / d * 1000);
+  $("#trimSel").style.left = (trim.start / d * 100) + "%"; $("#trimSel").style.width = ((trim.end - trim.start) / d * 100) + "%";
+  $("#trimAT").textContent = fmt(trim.start); $("#trimBT").textContent = fmt(trim.end);
+  const len = trim.end - trim.start, cut = len < d - 0.05;
+  $("#trimVal").textContent = cut ? `${fmt(len)} kept` : "full video";
+  if (hasVideo) $("#vidLen").textContent = "Length " + fmt(len) + (cut ? ` of ${fmt(d)}` : "");
+  lastExport = null; $("#result").hidden = true;
+}
+$("#trimA").addEventListener("input", e => {
+  const d = vid.duration || 0; trim.start = Math.max(0, Math.min(e.target.value / 1000 * d, trim.end - MIN_LEN));
+  vid.currentTime = trim.start; syncTrim();
+});
+$("#trimB").addEventListener("input", e => {
+  const d = vid.duration || 0; trim.end = Math.min(d, Math.max(e.target.value / 1000 * d, trim.start + MIN_LEN));
+  vid.currentTime = Math.max(trim.start, trim.end - 0.05); syncTrim();
+});
+$("#trimReset").onclick = resetTrim;
+$("#setIn").onclick = () => {
+  const t = vid.currentTime, d = vid.duration || 0;
+  if (t > trim.end - MIN_LEN) trim.end = d; // starting after the old end: open the end back up
+  trim.start = Math.max(0, Math.min(t, trim.end - MIN_LEN)); syncTrim();
+};
+$("#setOut").onclick = () => {
+  const t = vid.currentTime, d = vid.duration || 0;
+  if (t < trim.start + MIN_LEN) trim.start = 0; // ending before the old start: open the start back up
+  trim.end = Math.min(d, Math.max(t, trim.start + MIN_LEN)); syncTrim();
+};
+$("#muteBtn").onclick = () => { S.muted = !S.muted; save(); applyMute(); };
+
+// ---------- avatar ----------
+$("#avIn").addEventListener("change", e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  const img = new Image(); img.onload = () => { avatar = img; refresh(); }; img.src = URL.createObjectURL(f);
+});
+$("#avRemove").onclick = () => { avatar = null; refresh(); };
+
+// ---------- drawing ----------
+function wrap(ctx, text, maxW){
+  const out = [];
+  text.split("\n").forEach(par => {
+    const words = par.trim().split(/\s+/).filter(Boolean); let line = "";
+    words.forEach(w => { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; });
+    if (line) out.push(line);
+  });
+  return out;
+}
+function layout(ctx){
+  const m = Math.round(W * S.margin / 100);
+  const [a, b] = S.aspect.split(":").map(Number);
+  const box = { x: m, w: W - 2*m }; box.h = Math.round(box.w * b / a);
+  const tm = m + 28, maxW = W - 2*tm;
+  const fs = { S: 46, M: 56, L: 68 }[S.size], lh = Math.round(fs * 1.28);
+  ctx.font = `500 ${fs}px ${SANS}`;
+  const hl = S.headline.trim() ? wrap(ctx, S.headline, maxW) : [];
+  ctx.font = `400 30px ${SANS}`;
+  const bl = S.byline.trim() ? wrap(ctx, S.byline, maxW) : [];
+  const LOCK = 104, blh = 40;
+  const total = (S.lockOn ? LOCK + 34 : 0) + (hl.length ? hl.length*lh + 44 : 0) + box.h + (bl.length ? 30 + bl.length*blh : 0);
+  let y = Math.max(40, Math.round((H - total) / 2));
+  const L = { m, tm, maxW, fs, lh, hl, bl, blh, LOCK, box };
+  if (S.lockOn) { L.lockY = y; y += LOCK + 34; }
+  if (hl.length) { L.hlY = y; y += hl.length*lh + 44; }
+  box.y = y; y += box.h;
+  if (bl.length) L.blY = y + 30;
+  return L;
+}
+const C = () => S.bg === "white"
+  ? { bg:"#ffffff", text:"#0f1419", sub:"#536471", by:"#6b7280", ph:"#eef0f2", phLine:"rgba(0,0,0,.2)", ph1:"rgba(0,0,0,.55)", ph2:"rgba(0,0,0,.38)" }
+  : { bg:"#000000", text:"#f1f2f3", sub:"#8b949e", by:"#7d858f", ph:"#17191d", phLine:"rgba(255,255,255,.22)", ph1:"rgba(255,255,255,.6)", ph2:"rgba(255,255,255,.38)" };
+const norm = w => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+function highlightMask(words){
+  const n = words.map(norm), mask = words.map(() => false);
+  S.hlWords.split(",").map(p => p.trim().split(/\s+/).map(norm).filter(Boolean)).filter(p => p.length).forEach(p => {
+    for (let i = 0; i + p.length <= n.length; i++) if (p.every((pw, j) => n[i+j] === pw)) for (let j = 0; j < p.length; j++) mask[i+j] = true;
+  });
+  return mask;
+}
+function badge(ctx, x, cy, s){
+  const cx = x + s/2, r = s/2; ctx.beginPath();
+  for (let i = 0; i <= 32; i++) { const ang = i/32 * Math.PI*2, rr = i % 2 ? r*0.84 : r; ctx.lineTo(cx + Math.cos(ang)*rr, cy + Math.sin(ang)*rr); }
+  const col = S.badgeColor || "#1d9bf0", isWhite = col.toLowerCase() === "#ffffff";
+  ctx.fillStyle = col; ctx.fill();
+  if (isWhite && S.bg === "white") { ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2; ctx.stroke(); } // keep a white badge visible on a white background
+  ctx.beginPath(); ctx.moveTo(cx - s*0.22, cy + s*0.01); ctx.lineTo(cx - s*0.06, cy + s*0.17); ctx.lineTo(cx + s*0.23, cy - s*0.15);
+  ctx.strokeStyle = isWhite ? "#0f1419" : "#fff"; ctx.lineWidth = s*0.11; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke();
+}
+function drawAvatar(ctx, x, y, d){
+  ctx.save(); ctx.beginPath(); ctx.arc(x + d/2, y + d/2, d/2, 0, Math.PI*2); ctx.clip();
+  if (avatar) { const s = Math.max(d/avatar.width, d/avatar.height); ctx.drawImage(avatar, x + (d - avatar.width*s)/2, y + (d - avatar.height*s)/2, avatar.width*s, avatar.height*s); }
+  else {
+    ctx.fillStyle = "#3a3f47"; ctx.fillRect(x, y, d, d);
+    ctx.fillStyle = "#c9ced6"; ctx.font = `600 ${d*0.42}px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText((S.name.trim()[0] || "?").toUpperCase(), x + d/2, y + d/2 + 2);
+  }
+  ctx.restore();
+}
+function drawLockup(ctx, L){
+  const d = L.LOCK, gap = 22;
+  const name = S.name.trim() || "Name", user = S.user.trim();
+  ctx.font = `700 40px ${SANS}`; const nw = ctx.measureText(name).width;
+  ctx.font = `400 34px ${SANS}`; const uw = user ? ctx.measureText(user).width : 0;
+  const bs = 38, textW = Math.max(nw + (S.verified ? bs + 10 : 0), uw);
+  const x0 = S.align === "center" ? Math.round((W - (d + gap + textW)) / 2) : L.m + 6;
+  const y = L.lockY;
+  drawAvatar(ctx, x0, y, d);
+  const tx = x0 + d + gap;
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  const nameY = user ? y + 46 : y + d/2 + 14;
+  ctx.fillStyle = C().text; ctx.font = `700 40px ${SANS}`; ctx.fillText(name, tx, nameY);
+  if (S.verified) badge(ctx, tx + nw + 10, nameY - 14, bs);
+  if (user) { ctx.fillStyle = C().sub; ctx.font = `400 34px ${SANS}`; ctx.fillText(user, tx, y + 92); }
+}
+function drawVideoBox(ctx, box){
+  ctx.save(); ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
+  if (hasVideo && vid.readyState >= 2) {
+    const r = videoRect(box);
+    ctx.drawImage(vid, r.x, r.y, r.w, r.h);
+  } else {
+    ctx.fillStyle = C().ph; ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = C().phLine; ctx.setLineDash([16, 12]); ctx.lineWidth = 3;
+    ctx.strokeRect(box.x + 24, box.y + 24, box.w - 48, box.h - 48); ctx.setLineDash([]);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = C().ph1; ctx.font = `600 38px ${SANS}`; ctx.fillText("Add video", W/2, box.y + box.h/2 - 18);
+    ctx.fillStyle = C().ph2; ctx.font = `400 28px ${SANS}`; ctx.fillText(`${S.aspect} frame`, W/2, box.y + box.h/2 + 28);
+  }
+  ctx.restore();
+}
+function draw(ctx, skipVideo){
+  ctx.fillStyle = C().bg; ctx.fillRect(0, 0, W, H);
+  const L = layout(ctx);
+  if (S.lockOn) drawLockup(ctx, L);
+  if (L.hl.length) {
+    ctx.font = `500 ${L.fs}px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "top";
+    const mask = highlightMask(S.headline.trim().split(/\s+/));
+    const sp = ctx.measureText(" ").width, al = S.hAlign || "center";
+    let k = 0;
+    L.hl.forEach((line, i) => {
+      const words = line.split(" "), widths = words.map(w => ctx.measureText(w).width);
+      const total = widths.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+      // left edge lines up with the profile lockup's avatar
+      let x = al === "left" ? L.m + 6 : al === "right" ? W - L.m - 6 - total : (W - total) / 2;
+      words.forEach((w, j) => {
+        ctx.fillStyle = mask[k++] ? S.hlColor : C().text;
+        ctx.fillText(w, x, L.hlY + i*L.lh); x += widths[j] + sp;
+      });
+    });
+  }
+  if (!skipVideo) drawVideoBox(ctx, L.box);
+  lastBox = L.box;
+  if (L.bl.length) {
+    const al = S.blAlign || "center";
+    const bx = al === "left" ? L.box.x + 4 : al === "right" ? L.box.x + L.box.w - 4 : W/2;
+    ctx.fillStyle = C().by; ctx.font = `400 30px ${SANS}`; ctx.textAlign = al; ctx.textBaseline = "top";
+    L.bl.forEach((l, i) => ctx.fillText(l, bx, L.blY + i*L.blh));
+  }
+}
+
+// ---------- loop ----------
+const stage = $("#stage"), sctx = stage.getContext("2d");
+const fmt = s => { s = Math.max(0, s || 0); const m = Math.floor(s/60); return `${m}:${(s - m*60).toFixed(1).padStart(4, "0")}`; };
+function tick(now){
+  if (!hasVideo && clock.playing) { clock.t = (clock.t + (now - clock.last)/1000) % PH_DUR; }
+  clock.last = now;
+  if (hasVideo && !vid.seeking) {
+    if (exporting) {
+      if (exportDone && vid.currentTime >= trim.end) { const f = exportDone; exportDone = null; vid.pause(); f(); }
+    }
+  }
+  if (hasVideo) {
+    const ct = vid.currentTime, vd = vid.duration || 1;
+    $("#trimHead").style.left = (ct / vd * 100) + "%";
+    $("#cutBadge").hidden = exporting || (ct >= trim.start - 0.05 && ct <= trim.end + 0.05);
+    if (vid.paused && !exporting) { $("#setIn").textContent = `Trim start here · ${fmt(ct)}`; $("#setOut").textContent = `Trim end here · ${fmt(ct)}`; }
+  } else $("#cutBadge").hidden = true;
+  // while exporting, frames are painted from the cached layer (by the video-frame callback, or here as a fallback)
+  if (!exporting) draw(sctx); else if (staticPaint) staticPaint();
+  const d = dur(), t = curT();
+  $("#tNow").textContent = fmt(t); $("#tDur").textContent = fmt(d);
+  if (document.activeElement !== $("#seek")) $("#seek").value = d ? Math.round(t/d*1000) : 0;
+  if (exporting && hasVideo && now - lastXpUi > 200) { lastXpUi = now;
+    const len = trim.end - trim.start || 1, done = Math.min(len, Math.max(0, vid.currentTime - trim.start)), p = done / len;
+    $("#barFill").style.width = (p * 100) + "%";
+    $("#xpPct").textContent = Math.floor(p * 100) + "%";
+    $("#xpTime").textContent = `${fmt(done)} of ${fmt(len)}`;
+    $("#xpLeft").textContent = `about ${Math.max(1, Math.ceil(len - done))}s left`;
+    if (!thumbTaken && p >= 0.3) { thumbTaken = true; const tc = $("#resThumb").getContext("2d"); tc.drawImage(stage, 0, 0, 108, 192); }
+  }
+  requestAnimationFrame(tick);
+}
+
+// ---------- UI binding ----------
+function seg(id, key){
+  const el = $(id);
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[key] = b.dataset.v; save(); refresh(); });
+}
+seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor");
+$("#hAlignSeg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.hAlign = b.dataset.v;
+  if (S.hAlign !== "right") S.align = S.hAlign; // keep the lockup on the same edge as the headline
+  save(); refresh();
+});
+[["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"]].forEach(([id, key]) => {
+  const el = $(id); el.value = S[key];
+  el.addEventListener("input", () => { S[key] = el.value; save(); refresh(); });
+});
+[["#lockOn","lockOn"],["#pVerified","verified"],["#guides","guides"],["#safe","safe"]].forEach(([id, key]) => {
+  $(id).addEventListener("change", e => { S[key] = e.target.checked; save(); refresh(); });
+});
+$("#margin").value = S.margin;
+$("#margin").addEventListener("input", e => { S.margin = +e.target.value; save(); refresh(); });
+
+function refresh(){
+  document.querySelectorAll("#sizeSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.size));
+  document.querySelectorAll("#aspectSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.aspect));
+  document.querySelectorAll("#alignSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.align));
+  document.querySelectorAll("#bgSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.bg));
+  document.querySelectorAll("#hAlignSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.hAlign || "center")));
+  document.querySelectorAll("#blAlignSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.blAlign || "center")));
+  $("#lockOn").checked = S.lockOn; $("#pVerified").checked = S.verified; $("#guides").checked = S.guides;
+  $("#lockBody").style.opacity = S.lockOn ? 1 : .45;
+  $("#marginVal").textContent = `· ${S.margin}%`;
+  $("#guideBox").classList.toggle("show", S.guides && !exporting); // preview-only overlay, never recorded
+  document.querySelectorAll("#badgeSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.badgeColor || "#1d9bf0")));
+  $("#badgeField").style.opacity = S.verified ? 1 : .45;
+  $("#safe").checked = !!S.safe; $("#safeBox").toggleAttribute("hidden", !S.safe || exporting); // SVG elements have no .hidden property, so set the attribute
+  $("#gL").style.left = S.margin + "%"; $("#gR").style.left = (100 - S.margin) + "%";
+  $("#avRemove").hidden = !avatar;
+  const pv = $("#avPrev").getContext("2d"); pv.clearRect(0,0,96,96);
+  pv.save(); pv.scale(96/104, 96/104); drawAvatar(pv, 0, 0, 104); pv.restore();
+  $("#exportBtn").disabled = !hasVideo || exporting;
+  $("#queueBtn").disabled = !hasVideo || exporting;
+  $("#cropBox").hidden = !hasVideo;
+  $("#trimBox").hidden = !hasVideo;
+  ["#trimA","#trimB","#trimReset"].forEach(s => $(s).disabled = exporting);
+  updateTrimActs();
+  ["#zoom","#cropReset"].forEach(s => $(s).disabled = exporting);
+  screen.classList.toggle("can-crop", hasVideo && !exporting);
+  ["#vidIn","#vidRemove"].forEach(s => $(s).disabled = exporting);
+}
+function status(msg){ $("#status").textContent = msg; }
+
+// ---------- crop: drag + zoom on the preview ----------
+const screen = $(".screen");
+const toCanvas = e => { const r = stage.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
+const inBox = p => lastBox && p.x >= lastBox.x && p.x <= lastBox.x + lastBox.w && p.y >= lastBox.y && p.y <= lastBox.y + lastBox.h;
+const canCrop = () => hasVideo && !exporting && vid.videoWidth;
+let drag = null;
+stage.addEventListener("pointerdown", e => {
+  const p = toCanvas(e); if (!canCrop() || !inBox(p)) return;
+  drag = { x: p.x, y: p.y, px: crop.px, py: crop.py };
+  stage.setPointerCapture(e.pointerId); screen.classList.add("dragging"); e.preventDefault();
+});
+stage.addEventListener("pointermove", e => {
+  const p = toCanvas(e);
+  screen.classList.toggle("over-video", !!(canCrop() && inBox(p)));
+  if (!drag || !lastBox) return;
+  const r = videoRect(lastBox), ox = r.w - lastBox.w, oy = r.h - lastBox.h;
+  if (ox > 0.5) crop.px = Math.min(1, Math.max(0, drag.px - (p.x - drag.x) / ox));
+  if (oy > 0.5) crop.py = Math.min(1, Math.max(0, drag.py - (p.y - drag.y) / oy));
+});
+const endDrag = () => { drag = null; screen.classList.remove("dragging"); };
+stage.addEventListener("pointerup", endDrag); stage.addEventListener("pointercancel", endDrag);
+function setZoom(z){
+  crop.zoom = Math.min(3, Math.max(1, z));
+  $("#zoom").value = Math.round(crop.zoom * 100); $("#zoomVal").textContent = Math.round(crop.zoom * 100) + "%";
+}
+$("#zoom").addEventListener("input", e => setZoom(e.target.value / 100));
+stage.addEventListener("wheel", e => {
+  if (!canCrop() || !inBox(toCanvas(e))) return;
+  e.preventDefault(); setZoom(crop.zoom * Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
+$("#cropReset").onclick = resetCrop;
+
+// ---------- export ----------
+let downloads = null;
+(async () => { try { downloads = window.claude?.use ? await window.claude.use("downloads") : null; } catch(e) { downloads = null; } })();
+
+function pickMime(withAudio){
+  if (!window.MediaRecorder) return null;
+  const opts = withAudio
+    // H.264 MP4 first (what Instagram/TikTok want); a bare "video/mp4" can mean VP9-in-MP4, so it only comes after WebM
+    ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/mp4;codecs=avc3,mp4a.40.2","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"]
+    : ["video/mp4;codecs=avc1.42E01E","video/mp4;codecs=avc1","video/webm;codecs=vp9","video/webm","video/mp4"];
+  return opts.find(m => MediaRecorder.isTypeSupported(m)) || null;
+}
+const once = (el, ev) => new Promise(r => el.addEventListener(ev, r, { once: true }));
+const slug = s => (s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "reel");
+
+let cancelled = false, thumbTaken = false;
+document.addEventListener("visibilitychange", () => { if (exporting && document.hidden) exportWasHidden = true; });
+function setLocked(on){
+  [".controls", ".scrub", ".transport", "#trimBox"].forEach(s => { const el = $(s); el.inert = on; el.classList.toggle("locked", on); });
+  $("#recBadge").hidden = !on;
+}
+// keep recording even if something pauses the video mid-export
+vid.addEventListener("pause", () => { if (exporting && exportDone && !cancelled) vid.play().catch(() => {}); });
+$("#cancelBtn").onclick = () => {
+  cancelled = true; $("#cancelBtn").disabled = true; $("#cancelBtn").textContent = "Cancelling…";
+  if (exportDone) { const f = exportDone; exportDone = null; vid.pause(); f(); }
+};
+
+// record the current editor state to a video; returns {blob, ext, withAudio} or null if cancelled
+async function recordReel(label){
+  ensureAudio();
+  const withAudio = !S.muted && !!audioDest;
+  const mime = pickMime(withAudio);
+  if (!mime || !stage.captureStream) { status("This browser can't record video. Use a recent Chrome, Edge or Safari."); throw new Error("unsupported"); }
+  exporting = true; thumbTaken = false;
+  setLocked(true); refresh();
+  $(".xp-title").textContent = label;
+  $("#result").hidden = true; $("#xp").hidden = false; $("#barFill").style.width = "0"; $("#xpPct").textContent = "0%";
+  $("#cancelBtn").disabled = false; $("#cancelBtn").textContent = batchRunning ? "Cancel all" : "Cancel export";
+  status("Keep this tab open and in front until it finishes.");
+  exportWasHidden = false;
+  vid.pause(); vid.loop = false;
+  const seeked = once(vid, "seeked"); vid.currentTime = trim.start; await seeked;
+  // let the decoder buffer so the opening second doesn't stutter
+  if (vid.readyState < 3) await Promise.race([once(vid, "canplay"), new Promise(r => setTimeout(r, 1500))]);
+  // render everything that doesn't move (background, lockup, headline, byline) once, then only redraw the video each frame
+  const layer = document.createElement("canvas"); layer.width = W; layer.height = H;
+  draw(layer.getContext("2d"), true);
+  const box = { ...lastBox };
+  // the stage keeps its pixels between frames, so after one full paint only the video box needs redrawing
+  sctx.drawImage(layer, 0, 0);
+  const paint = () => drawVideoBox(sctx, box);
+  paint();
+  // capture at a steady 30fps; each animation frame only repaints the video box (see tick)
+  const stream = stage.captureStream(30);
+  smoothExport = false; staticPaint = paint;
+  if (withAudio) audioDest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10_000_000, audioBitsPerSecond: 192_000 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const stopped = once(rec, "stop");
+  rec.start(1000);
+  const reachedEnd = new Promise(res => { exportDone = res; });
+  let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch(e) {}
+  try { await vid.play(); } catch(e) {}
+  await Promise.race([reachedEnd, once(vid, "ended")]);
+  exportDone = null;
+  rec.stop(); await stopped;
+  stream.getVideoTracks().forEach(t => t.stop());
+  try { wake && wake.release(); } catch(e) {}
+  smoothExport = false; staticPaint = null;
+  vid.loop = true; exporting = false; $("#xp").hidden = true;
+  if (!batchRunning) setLocked(false);
+  if (cancelled) {
+    vid.pause(); vid.currentTime = trim.start;
+    status("Export cancelled. Nothing was saved.");
+    refresh(); updatePlayBtn(); return null;
+  }
+  refresh(); updatePlayBtn();
+  const type = mime.split(";")[0], ext = type === "video/mp4" ? "mp4" : "webm";
+  return { blob: new Blob(chunks, { type }), ext, withAudio };
+}
+
+$("#exportBtn").onclick = async () => {
+  if (!hasVideo || exporting) return;
+  cancelled = false;
+  let out;
+  try { out = await recordReel("Exporting reel"); } catch(e) { return; }
+  if (!out) return;
+  lastExport = { blob: out.blob, name: `${slug(S.headline)}.${out.ext}` };
+  if (!thumbTaken) $("#resThumb").getContext("2d").drawImage(stage, 0, 0, 108, 192);
+  $("#resultText").innerHTML = [fmt(trim.end - trim.start), out.ext.toUpperCase(), "1080×1920", (out.blob.size/1048576).toFixed(1) + " MB", out.withAudio ? "With sound" : "No sound"]
+    .map(c => `<span class="chip">${c}</span>`).join("");
+  $("#result").hidden = false;
+  status(out.ext === "webm" ? "This browser can only record WebM. Instagram and TikTok want MP4, so export from Chrome or Safari for MP4." : "Done. Press Save to download it.");
+  if (exportWasHidden) status("This tab went into the background during export, which can make the video stutter. Export again with the tab in front for a clean file.");
+  saveExport();
+};
+
+async function saveBlob(blob, name){
+  if (downloads) {
+    try { await downloads.save({ filename: name, data: blob }); status("Saved."); return true; }
+    catch(e) {
+      const code = e && e.code;
+      if (code === "declined") status("Save cancelled. Press Save to try again.");
+      else if (code === "rate_limited") status("A save prompt is already open. Finish it, then press Save again.");
+      else if (code === "too_large") status("The file is too large to save here. Try fewer or shorter reels.");
+      else status("Saving isn't available in this view.");
+      return false;
+    }
+  } else if (!window.claude) {
+    // opened as a standalone file: plain download works
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    status("Saved."); return true;
+  }
+  status("Saving isn't available in this view. Open CoolReelTool directly to save."); return false;
+}
+async function saveExport(){ if (lastExport) await saveBlob(lastExport.blob, lastExport.name); }
+$("#saveBtn").onclick = saveExport;
+
+// ---------- tabs ----------
+function switchTab(name){
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  ["editor", "profiles", "queue", "ai", "rewrite"].forEach(t => $("#tab-" + t).hidden = t !== name);
+  if (name === "rewrite" && typeof openRewrite === "function") openRewrite();
+}
+$(".tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) switchTab(b.dataset.tab); });
+
+// put every text field back in line with S (after applying a profile or a queued reel)
+function syncInputs(){
+  [["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"]].forEach(([id, k]) => { $(id).value = S[k] ?? ""; });
+  $("#margin").value = S.margin; applyMute();
+}
+const loadImg = src => new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+function avatarData(){
+  if (!avatar) return null;
+  const c = document.createElement("canvas"); c.width = c.height = 200; const x = c.getContext("2d");
+  const s = Math.max(200/avatar.width, 200/avatar.height);
+  x.drawImage(avatar, (200 - avatar.width*s)/2, (200 - avatar.height*s)/2, avatar.width*s, avatar.height*s);
+  return c.toDataURL("image/jpeg", .88);
+}
+
+// ---------- profiles ----------
+// what a profile remembers: the page's look and lockup, not the headline or video
+const PF = ["bg","size","hAlign","hlColor","aspect","margin","lockOn","name","user","verified","badgeColor","align","byline","blAlign"];
+let profiles = [], profStore = null, profLoaded = false, userCol = null;
+const LS_PROFILES = "coolreeltool:profiles";
+const localStore = {
+  write(){ try { localStorage.setItem(LS_PROFILES, JSON.stringify(profiles)); } catch(e) { status("This browser blocked saving profiles."); } },
+  load(){ try { return JSON.parse(localStorage.getItem(LS_PROFILES) || "[]"); } catch(e) { return []; } },
+  async put(p){ const i = profiles.findIndex(x => x.id === p.id); if (i >= 0) profiles[i] = p; else profiles.push(p); this.write(); renderProfiles(); },
+  async del(id){ profiles = profiles.filter(p => p.id !== id); this.write(); renderProfiles(); }
+};
+function useLocalProfiles(){ profStore = localStore; profiles = localStore.load(); profLoaded = true; afterProfilesLoad(); }
+async function initProfiles(){
+  let db = null, uid = null;
+  try {
+    if (window.claude?.use) {
+      db = await window.claude.use("db");
+      const u = await window.claude.use("user");
+      uid = u ? await u.id() : null;
+    }
+  } catch(e) {}
+  if (!db || !uid) return useLocalProfiles();
+  // saved to this person's private space in the page's store, so they follow them across devices
+  const col = db.collection("data/users/" + uid); userCol = col;
+  profStore = { put: p => col.doc(p.id).set(p), del: id => col.doc(id).delete() };
+  const timer = setTimeout(() => { if (!profLoaded) { profLoaded = true; renderProfiles(); status("Profiles are taking a while to load."); } }, 10000);
+  col.onSnapshot(snap => {
+    clearTimeout(timer); profLoaded = true;
+    profiles = snap.docs.map(d => ({ ...d.data(), id: d.id })).filter(p => p.title).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    afterProfilesLoad();
+  }, () => { clearTimeout(timer); useLocalProfiles(); });
+}
+function afterProfilesLoad(){
+  renderProfiles();
+  const p = profiles.find(x => x.id === S.profileId);
+  if (p && !avatar && p.avatar) loadImg(p.avatar).then(i => { if (!avatar && i) { avatar = i; refresh(); } });
+}
+async function putProfile(p){ try { await profStore.put(p); return true; } catch(e) { status("Couldn't save that profile. Check your connection and try again."); return false; } }
+function snapshotProfile(title, id, createdAt){
+  const p = { id: id || "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), title, avatar: avatarData(), createdAt: createdAt || Date.now(), updatedAt: Date.now() };
+  PF.forEach(k => p[k] = S[k]);
+  return p;
+}
+async function applyProfile(p){
+  PF.forEach(k => { if (p[k] !== undefined) S[k] = p[k]; });
+  avatar = await loadImg(p.avatar);
+  S.profileId = p.id; save(); syncInputs(); refresh(); renderProfiles();
+}
+function renderProfiles(){
+  renderAiPages();
+  const sel = $("#profSel");
+  sel.innerHTML = `<option value="">No profile</option>` + profiles.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("");
+  sel.value = profiles.some(p => p.id === S.profileId) ? S.profileId : "";
+  $("#profUpdate").disabled = !sel.value;
+  const list = $("#profList");
+  if (!profLoaded) { list.innerHTML = `<div class="empty">Loading profiles…</div>`; return; }
+  if (!profiles.length) { list.innerHTML = `<div class="empty">No profiles yet. Set up a page's look in the Editor, then name it above and press Save.</div>`; return; }
+  list.innerHTML = profiles.map(p => `
+    <div class="pcard${p.id === S.profileId ? " active" : ""}" data-id="${esc(p.id)}" tabindex="0" aria-label="Switch to ${esc(p.title)}" aria-current="${p.id === S.profileId}">
+      <div class="pav">${p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : esc(((p.name || "?").trim()[0] || "?").toUpperCase())}</div>
+      <div class="pmain">
+        <input type="text" class="ptitle" value="${esc(p.title)}" aria-label="Profile name">
+        <div class="psub">${esc(p.name || "")}  ${esc(p.user || "")}</div>
+        <div class="pswatch">
+          <span class="sw" style="background:${p.bg === "white" ? "#ffffff" : "#000000"}" title="Background: ${p.bg === "white" ? "white" : "black"}"></span>
+          <span class="sw" style="background:${esc(p.hlColor)}" title="Highlight color"></span>
+          <span class="sw round" style="background:${esc(p.badgeColor || "#1d9bf0")}" title="Badge color"></span>
+          <span class="chip">${esc(p.aspect || "16:9")}</span>
+          ${p.id === S.profileId ? `<span class="chip ok">In use</span>` : ""}
+        </div>
+      </div>
+      <div class="pacts">
+        <button class="btn small" data-act="update">Update from editor</button>
+        <button class="btn small" data-act="del">Delete</button>
+      </div>
+    </div>`).join("");
+}
+$("#profList").addEventListener("click", async e => {
+  const card = e.target.closest(".pcard"); if (!card) return;
+  const p = profiles.find(x => x.id === card.dataset.id); if (!p) return;
+  const b = e.target.closest("button[data-act]");
+  if (!b) {
+    // clicking anywhere on the card (except its name field) switches to that profile
+    if (e.target.closest(".ptitle") || p.id === S.profileId) return;
+    await applyProfile(p); status(`Switched to “${p.title}”.`); return;
+  }
+  if (b.dataset.act === "update") { if (await putProfile(snapshotProfile(p.title, p.id, p.createdAt))) status(`Updated “${p.title}” from the editor.`); }
+  else if (b.dataset.act === "del") {
+    if (!b.dataset.confirm) { b.dataset.confirm = "1"; b.textContent = "Tap again to delete"; setTimeout(() => { if (b.isConnected) { delete b.dataset.confirm; b.textContent = "Delete"; } }, 3000); return; }
+    try { await profStore.del(p.id); if (S.profileId === p.id) { S.profileId = null; save(); } status(`Deleted “${p.title}”.`); } catch(err) { status("Couldn't delete that profile. Try again."); }
+  }
+});
+$("#profList").addEventListener("change", e => {
+  const t = e.target.closest(".ptitle"); if (!t) return;
+  const p = profiles.find(x => x.id === t.closest(".pcard").dataset.id); if (!p) return;
+  const title = t.value.trim(); if (!title) { t.value = p.title; return; }
+  putProfile({ ...p, title, updatedAt: Date.now() }).then(ok => ok && status(`Renamed to “${title}”.`));
+});
+$("#profList").addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.closest(".ptitle")) { e.target.blur(); return; }
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("pcard")) { e.preventDefault(); e.target.click(); }
+});
+$("#profSaveBtn").onclick = async () => {
+  const title = $("#profTitle").value.trim();
+  if (!title) { status("Give the profile a name first, like “Evidence of Aliens”."); $("#profTitle").focus(); return; }
+  const p = snapshotProfile(title);
+  if (await putProfile(p)) { S.profileId = p.id; save(); $("#profTitle").value = ""; renderProfiles(); status(`Saved “${title}”.`); }
+};
+$("#profTitle").addEventListener("keydown", e => { if (e.key === "Enter") $("#profSaveBtn").click(); });
+$("#profSel").addEventListener("change", e => {
+  const p = profiles.find(x => x.id === e.target.value);
+  if (p) { applyProfile(p); status(`Using “${p.title}”.`); } else { S.profileId = null; save(); renderProfiles(); }
+});
+$("#profUpdate").onclick = async () => {
+  const p = profiles.find(x => x.id === S.profileId); if (!p) return;
+  if (await putProfile(snapshotProfile(p.title, p.id, p.createdAt))) status(`Saved changes to “${p.title}”.`);
+};
+$("#profNew").onclick = () => { switchTab("profiles"); $("#profTitle").focus(); };
+
+// ---------- queue ----------
+let queue = [], qid = 0, batchRunning = false;
+const statusChip = q => q.status === "done" ? `<span class="chip ok">Exported</span>` : q.status === "exporting" ? `<span class="chip live">Exporting</span>` : q.status === "failed" ? `<span class="chip bad">Failed</span>` : `<span class="chip">Waiting</span>`;
+function renderQueue(){
+  $("#qCount").textContent = queue.length; $("#qCount").hidden = !queue.length;
+  const list = $("#qList");
+  if (!queue.length) list.innerHTML = `<div class="empty">The queue is empty. Set up a reel in the Editor and press <b>Add to queue</b>. Repeat for each reel, then export them all at once.</div>`;
+  else list.innerHTML = queue.map(q => `
+    <div class="qcard" data-id="${q.id}">
+      <img src="${q.thumb}" alt="">
+      <div class="pmain">
+        <div class="qhl">${esc(q.settings.headline.trim() || "Untitled reel")}</div>
+        <div class="chips">${q.profileTitle ? `<span class="chip">${esc(q.profileTitle)}</span>` : ""}<span class="chip">${fmt(q.trim.end - q.trim.start)}</span><span class="chip">${esc(q.settings.aspect)}</span>${statusChip(q)}</div>
+      </div>
+      <div class="pacts">
+        ${q.status === "done" ? `<button class="btn small rec" data-act="save">Save</button>` : `<button class="btn small" data-act="edit">Edit</button>`}
+        <button class="btn small" data-act="remove">Remove</button>
+      </div>
+    </div>`).join("");
+  const waiting = queue.filter(q => q.status !== "done").length, done = queue.filter(q => q.status === "done").length;
+  $("#qExport").disabled = !waiting || exporting || batchRunning;
+  $("#qExport").querySelector("span").textContent = waiting ? `Export all (${waiting})` : "Export all";
+  $("#qZip").hidden = !done; $("#qZip").textContent = `Save ${done} as .zip`;
+  $("#qClear").hidden = !done;
+}
+function addToQueue(){
+  if (!hasVideo || !curFile || exporting) return;
+  const t = document.createElement("canvas"); t.width = 108; t.height = 192; t.getContext("2d").drawImage(stage, 0, 0, 108, 192);
+  queue.push({
+    id: ++qid, settings: { ...S }, file: curFile, trim: { ...trim }, crop: { ...crop }, avatarSrc: avatarData(),
+    thumb: t.toDataURL("image/jpeg", .8), status: "waiting", out: null,
+    profileTitle: (profiles.find(p => p.id === S.profileId) || {}).title || ""
+  });
+  // clear the editor for the next reel but keep the page's look
+  clearVideo(); S.headline = ""; S.hlWords = ""; save(); syncInputs(); refresh(); renderQueue();
+  status(`Added to queue (${queue.length}). Add the next video and headline, or open the Queue tab to export.`);
+}
+$("#queueBtn").onclick = addToQueue;
+async function applySnapshot(q){
+  Object.assign(S, q.settings); save(); syncInputs();
+  avatar = await loadImg(q.avatarSrc);
+  await setVideo(q.file);
+  trim.start = q.trim.start; trim.end = q.trim.end; syncTrim();
+  crop.px = q.crop.px; crop.py = q.crop.py; setZoom(q.crop.zoom);
+  refresh(); renderProfiles();
+}
+$("#qList").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b || batchRunning) return;
+  const q = queue.find(x => x.id === +b.closest(".qcard").dataset.id); if (!q) return;
+  if (b.dataset.act === "remove") { queue = queue.filter(x => x !== q); renderQueue(); }
+  else if (b.dataset.act === "save") saveBlob(q.out.blob, q.out.name);
+  else if (b.dataset.act === "edit") {
+    try { await applySnapshot(q); } catch(err) { status("Couldn't reopen that video."); return; }
+    queue = queue.filter(x => x !== q); renderQueue(); switchTab("editor");
+    status("Moved back to the editor. Press Add to queue when you're done.");
+  }
+});
+$("#qExport").onclick = async () => {
+  const todo = queue.filter(q => q.status !== "done");
+  if (!todo.length || exporting || batchRunning) return;
+  batchRunning = true; cancelled = false; setLocked(true); renderQueue();
+  let n = 0;
+  for (const q of todo) {
+    n++; q.status = "exporting"; renderQueue();
+    try {
+      await applySnapshot(q);
+      const out = await recordReel(`Exporting reel ${n} of ${todo.length}`);
+      if (!out) { q.status = "waiting"; break; }
+      const idx = queue.indexOf(q) + 1;
+      q.out = { blob: out.blob, name: `${String(idx).padStart(2, "0")}-${slug(q.settings.headline)}.${out.ext}` };
+      q.status = "done";
+    } catch(err) { q.status = "failed"; }
+    renderQueue();
+    if (cancelled) break;
+  }
+  batchRunning = false; setLocked(false); refresh(); renderQueue();
+  const done = queue.filter(q => q.status === "done").length;
+  status(cancelled ? `Export stopped. ${done} finished reel${done === 1 ? " is" : "s are"} kept in the queue.` : `All done. ${done} reel${done === 1 ? "" : "s"} ready.`);
+  if (!cancelled && done) saveZip();
+};
+async function saveZip(){
+  const done = queue.filter(q => q.status === "done"); if (!done.length) return;
+  if (!window.JSZip) { status("Couldn't load the zip tool. Save the reels one at a time from the queue."); return; }
+  status("Packing your reels into one file…");
+  const zip = new JSZip(); done.forEach(q => zip.file(q.out.name, q.out.blob));
+  const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+  await saveBlob(blob, `coolreeltool-${done.length}-reels.zip`);
+}
+$("#qZip").onclick = saveZip;
+$("#qClear").onclick = () => { queue = queue.filter(q => q.status !== "done"); renderQueue(); };
+
+// ---------- AI ideas ----------
+let sample = null, aiCtl = null, aiResult = null, aiAt = null, aiLastProf, aiDraftTimer = null, aiDraftFlush = null;
+const aiKey = () => "ideas-" + ($("#aiPage").value || "editor");
+function renderAiPages(){
+  const sel = $("#aiPage"), prev = sel.value;
+  sel.innerHTML = `<option value="">Current editor look</option>` + profiles.map(p => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("");
+  // follow the active profile: switching pages anywhere switches the AI tab too
+  const active = profiles.some(p => p.id === S.profileId) ? S.profileId : "";
+  const followed = aiLastProf !== S.profileId; aiLastProf = S.profileId;
+  const want = followed ? active : (prev && profiles.some(p => p.id === prev) ? prev : active);
+  if (sel.value !== want) flushAiDraft();
+  if (sel.value !== want || sel.dataset.loaded !== want) { sel.value = want; sel.dataset.loaded = want; loadAiSaved(); }
+}
+const aiPageInfo = () => {
+  const p = profiles.find(x => x.id === $("#aiPage").value);
+  return p ? { title: p.title, name: p.name, user: p.user } : { title: S.name, name: S.name, user: S.user };
+};
+async function loadAiSaved(){
+  const key = aiKey(); let doc = null;
+  try {
+    if (userCol) { const snap = await userCol.doc(key).get(); doc = snap.exists ? snap.data() : null; }
+    else doc = JSON.parse(localStorage.getItem("coolreeltool:" + key) || "null");
+  } catch(e) {}
+  if (key !== aiKey()) return; // page changed while loading
+  $("#aiNiche").value = doc?.niche || ""; $("#aiNotes").value = doc?.notes || "";
+  aiResult = doc?.result || null; aiAt = doc?.at || null; renderAi(aiAt); renderTopics();
+}
+async function saveAi(niche, notes, result){
+  const doc = { kind: "ideas", niche, notes, result, at: Date.now() }, key = aiKey();
+  try { if (userCol) await userCol.doc(key).set(doc); else localStorage.setItem("coolreeltool:" + key, JSON.stringify(doc)); } catch(e) {}
+  aiAt = doc.at; return doc.at;
+}
+// keep each page's niche and notes as you type, so every profile remembers its own AI info
+function writeAiDoc(key, doc){
+  try { if (userCol) userCol.doc(key).set(doc).catch(() => {}); else localStorage.setItem("coolreeltool:" + key, JSON.stringify(doc)); } catch(e) {}
+}
+function saveAiDraft(){
+  const key = aiKey(), doc = { kind: "ideas", niche: $("#aiNiche").value, notes: $("#aiNotes").value, result: aiResult, at: aiAt };
+  clearTimeout(aiDraftTimer);
+  aiDraftFlush = () => { aiDraftFlush = null; writeAiDoc(key, doc); };
+  aiDraftTimer = setTimeout(() => aiDraftFlush && aiDraftFlush(), 600);
+}
+function flushAiDraft(){ clearTimeout(aiDraftTimer); if (aiDraftFlush) aiDraftFlush(); }
+const arr = v => Array.isArray(v) ? v : [];
+function markHl(headline, hl){
+  let h = esc(headline);
+  String(hl || "").split(",").map(s => s.trim()).filter(Boolean).forEach(w => {
+    const re = new RegExp("(" + esc(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "i");
+    h = h.replace(re, "<mark>$1</mark>");
+  });
+  return h;
+}
+function renderAi(at){
+  const out = $("#aiOut"), r = aiResult;
+  if (!r) { out.innerHTML = `<div class="empty">No research yet for this page. Describe the niche above and press <b>Research my niche</b>.</div>`; return; }
+  const when = at ? new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+  out.innerHTML = `
+    <section class="sec"><div class="sec-h"><h2>Your niche</h2>${when ? `<span class="mono">Researched ${esc(when)}</span>` : ""}</div><p class="aitext">${esc(r.niche)}</p></section>
+    <section class="sec"><h2>What goes viral here</h2><ul class="ailist">${arr(r.whatWorks).map(w => `<li><b>${esc(w.pattern)}.</b> ${esc(w.why)}</li>`).join("")}</ul></section>
+    <section class="sec"><h2>Hook formulas</h2>${arr(r.hooks).map(h => `<div class="hookline">${esc(h)}</div>`).join("")}</section>
+    <div class="ai-head"><h2>Reel ideas</h2><span class="mono">${arr(r.ideas).length} ideas</span></div>
+    ${arr(r.ideas).map((d, i) => `
+      <article class="idea" data-i="${i}">
+        <button class="idea-hl" data-act="use" title="Send this headline to the editor"><h3>${markHl(d.headline, d.highlight)}</h3><small>Click to send to the editor</small></button>
+        <div class="idea-row"><span class="label">Clip to find</span><p>${esc(d.clip)}</p></div>
+        <div class="idea-row"><span class="label">Search for</span><div class="chips">${arr(d.search).map(s => `<span class="chip">${esc(s)}</span>`).join("")}</div></div>
+        <div class="idea-row"><span class="label">Where to look</span><p>${esc(d.where)}</p></div>
+        <div class="idea-row"><span class="label">Caption</span><p class="cap">${esc(d.caption)}\n${esc(arr(d.hashtags).join(" "))}</p></div>
+        <div class="pacts"><button class="btn small rec" data-act="use">Use in editor</button><button class="btn small" data-act="copy">Copy caption</button></div>
+      </article>`).join("")}
+    ${r.postingTips ? `<section class="sec"><h2>Posting tips</h2><p class="aitext">${esc(r.postingTips)}</p></section>` : ""}
+    <p class="hint">Ideas come from the AI's built-in knowledge, not live trend data, so check what's current before you post. Only post clips you own or have permission to use, and credit the creator in your byline.</p>`;
+}
+let aiPrevKey = null;
+$("#aiPage").addEventListener("focus", () => { aiPrevKey = aiKey(); });
+$("#aiPage").addEventListener("change", () => { flushAiDraft(); $("#aiPage").dataset.loaded = $("#aiPage").value; loadAiSaved(); });
+$("#aiGo").onclick = async () => {
+  if (!sample) return;
+  const niche = $("#aiNiche").value.trim(), notes = $("#aiNotes").value.trim();
+  if (!niche) { $("#aiState").textContent = "Describe the niche first, like “UFO sightings and unexplained footage”."; $("#aiNiche").focus(); return; }
+  const pg = aiPageInfo();
+  const prompt = `You are a short-form video strategist for Instagram Reels and TikTok.
+Page: ${pg.title} (${pg.user || "no handle"})
+Niche: ${niche}
+Audience and notes: ${notes || "none given"}
+Format: vertical reels with a bold headline above a letterboxed clip, in the "headline plus clip" commentary style.
+
+Research this niche from what you know and reply with ONLY a JSON object of this shape:
+{"niche": "2-3 sentences on who the audience is and what they engage with",
+ "whatWorks": [{"pattern": "short name", "why": "one sentence"}],
+ "hooks": ["headline formula with [blanks] to fill"],
+ "ideas": [{"headline": "ready-to-post headline under 90 characters", "highlight": "1-3 words copied exactly from the headline to color", "clip": "what footage to find", "search": ["search term"], "where": "where to find this kind of user-generated clip and which creators to ask", "caption": "1-2 sentence caption ending with a question", "hashtags": ["#tag"]}],
+ "postingTips": "2-3 sentences on posting cadence and timing"}
+Give 5 whatWorks items, 5 hooks, 8 ideas, 3 search terms and 5 hashtags per idea.
+Rules: write original headlines. Do not state specific recent news as fact; where an idea depends on a recent event, phrase it so the user fills in a real example. Suggest clips from creators who can give permission, and never suggest re-uploading TV, film or music they don't own.`;
+  aiCtl = new AbortController();
+  $("#aiGo").disabled = true; $("#aiStop").hidden = false; $("#aiState").textContent = "Researching your niche… this takes about a minute.";
+  try {
+    const r = await sample.json(prompt, { modelTier: "default", signal: aiCtl.signal, cache: false,
+      onText: ({ text }) => { $("#aiState").textContent = `Writing ideas… ${Math.min(99, Math.round(text.length / 60))}%`; } });
+    if (!r || !Array.isArray(r.ideas)) throw { code: "invalid_json" };
+    aiResult = r; const at = await saveAi(niche, notes, r); renderAi(at);
+    $("#aiState").textContent = `Done. ${r.ideas.length} ideas ready below.`;
+  } catch(e) {
+    const code = e && e.code;
+    $("#aiState").textContent = code === "aborted" || (aiCtl && aiCtl.signal.aborted) ? "Stopped."
+      : code === "rate_limited" ? "You've hit the usage limit for now. Try again later."
+      : code === "not_granted" ? "AI ideas need your permission. Allow it from the page's Permissions menu."
+      : code === "invalid_json" ? "The answer came back garbled. Press Research my niche to try again."
+      : "Something went wrong. Press Research my niche to try again.";
+  } finally { $("#aiGo").disabled = !sample; $("#aiStop").hidden = true; aiCtl = null; }
+};
+$("#aiStop").onclick = () => aiCtl && aiCtl.abort();
+$("#aiOut").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b || !aiResult) return;
+  const d = arr(aiResult.ideas)[+b.closest(".idea").dataset.i]; if (!d) return;
+  if (b.dataset.act === "copy") {
+    const text = `${d.caption}\n\n${arr(d.hashtags).join(" ")}`;
+    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy caption", 1500); }
+    catch(err) { $("#aiState").textContent = "Couldn't copy here. Select the caption text and copy it yourself."; }
+  } else if (b.dataset.act === "use") {
+    const p = profiles.find(x => x.id === $("#aiPage").value);
+    if (p && p.id !== S.profileId) await applyProfile(p);
+    S.headline = d.headline || ""; S.hlWords = d.highlight || ""; save(); syncInputs(); refresh();
+    switchTab("editor"); status("Idea loaded. Add the clip and you're ready to export or queue it.");
+  }
+});
+// ---------- topic chips: quick building blocks for the niche, picked from the page's name ----------
+const TOPIC_MAP = [
+  [/alien|ufo|uap|extraterr|area ?51|cosmic|unexplain|paranormal|cryptid/i, ["UFO sightings", "Alien theories", "Unexplained sky footage", "Area 51", "Crop circles", "Abduction stories", "Government UAP files", "Pilot sightings", "Cryptids", "Ancient alien theories"]],
+  [/200\d|2000s|90s|nostalg|throwback|retro|millennial|y2k/i, ["Flip phones", "MySpace & early social media", "Burned CDs & MP3 players", "Mall culture", "Early 2000s TV", "Y2K fashion", "Video rental stores", "Old-school gaming", "School life back then", "Then vs now"]],
+  [/space|nasa|rocket|astro|planet|galax|cosmos/i, ["Rocket launches", "Space photos", "Astronaut life", "Black holes", "Mars missions", "Night sky events", "Space facts", "Satellites & space junk"]],
+  [/car|auto|motor|drift|jdm|garage|race|racing/i, ["Sleeper builds", "Rare car finds", "Car meets", "Engine swaps", "Barn finds", "Supercar spotting", "Restorations", "Drag races"]],
+  [/food|eat|chef|cook|kitchen|recipe|snack|bbq|grill/i, ["Street food", "Satisfying cooking", "Giant portions", "Food hacks", "Regional dishes", "Fast food reviews", "Chef skills", "Weird food combos"]],
+  [/pet|dog|cat|puppy|kitten|animal|wild|zoo|nature/i, ["Funny pets", "Dramatic dogs", "Rescue stories", "Doorbell-cam animals", "Wildlife encounters", "Baby animals", "Animal friendships", "Smart animal moments"]],
+  [/gym|fit|lift|muscle|workout|train|strength/i, ["PR celebrations", "Gym fails", "Transformation stories", "Workout tips", "Strength feats", "Gym etiquette", "Motivation clips", "Meal prep"]],
+  [/sport|ball|hoops|nba|nfl|soccer|football|golf|hockey|goat/i, ["Buzzer-beaters", "Trick shots", "Highlight plays", "Bloopers", "Underdog wins", "Fan reactions", "Throwback moments", "GOAT debates"]],
+  [/histor|ancient|war|past|era|vintage|old/i, ["Weird history facts", "Forgotten inventions", "Old photos restored", "Ancient mysteries", "Lost civilizations", "Historical what-ifs", "Vintage ads", "On this day"]],
+  [/money|financ|rich|wealth|invest|stock|crypto|business|hustle|entrepreneur/i, ["Money tips", "Side hustles", "Founder stories", "Luxury lifestyle", "Investing basics", "Rags to riches", "How things are made", "Business fails"]],
+  [/travel|explore|wander|trip|adventure|hike|outdoor|park/i, ["Hidden travel spots", "National parks", "Hiking views", "Budget travel", "Unusual hotels", "Road trips", "Abandoned places", "Travel fails"]],
+  [/home|house|diy|decor|interior|reno|build|tiny/i, ["Budget makeovers", "Before and after", "Tiny homes", "Life hacks", "Satisfying cleaning", "Dream homes", "DIY fails", "Restoration"]],
+  [/fish|hunt|lake|boat|ocean|sea|deep/i, ["Big catches", "Deep sea creatures", "Ocean mysteries", "Boat fails", "Lake life", "Shark encounters", "Underwater footage", "Fishing tips"]],
+  [/weather|storm|tornado|hurricane|chaser|sky/i, ["Storm footage", "Tornado close calls", "Hail storms", "Lightning strikes", "Weird weather", "Northern lights", "Flood rescues", "Storm chasers"]],
+  [/crime|mystery|unsolved|case|detective|cold/i, ["Unsolved mysteries", "Cold cases", "Strange disappearances", "Heists", "Courtroom moments", "Scam stories", "Mystery photos", "Conspiracy theories"]],
+  [/game|gaming|gamer|arcade|nintendo|xbox|playstation|console/i, ["Retro consoles", "Speedruns", "Gaming nostalgia", "Arcade finds", "Rare collectibles", "Game glitches", "Setup tours", "Esports moments"]],
+  [/tech|gadget|ai|robot|future|science|innov/i, ["Futuristic gadgets", "Robots", "AI breakthroughs", "Science experiments", "Inventions", "Tech fails", "Future cities", "Mind-blowing facts"]],
+  [/good|wholesome|kind|happy|positive|inspir|motiv/i, ["Acts of kindness", "Good news", "Comeback stories", "Reunions", "Community heroes", "Feel-good surprises", "Rescue stories", "Motivational moments"]]
+];
+const GENERIC_TOPICS = ["Viral moments", "Caught on camera", "Satisfying clips", "Wild skills", "Funny fails", "Did you know", "Then vs now", "Unbelievable facts"];
+const AUDIENCE = ["US audience", "18–34", "25–45", "Millennials", "Gen Z", "Loves debating in comments", "Shares to group chats", "Saves posts for later", "Tags friends", "Watches to relax"];
+let extraTopics = {};
+function pageTopics(){
+  const pg = aiPageInfo(), hay = `${pg.title} ${pg.name} ${pg.user}`;
+  const hits = TOPIC_MAP.filter(([re]) => re.test(hay)).flatMap(([, t]) => t);
+  const base = hits.length ? hits : GENERIC_TOPICS;
+  return [...new Set([...base, ...(extraTopics[aiKey()] || [])])].slice(0, 24);
+}
+const listOf = v => v.split(",").map(s => s.trim()).filter(Boolean);
+function renderChips(box, items, field){
+  const have = new Set(listOf(field.value).map(s => s.toLowerCase()));
+  box.innerHTML = items.map(t => `<button type="button" aria-pressed="${have.has(t.toLowerCase())}">${esc(t)}</button>`).join("");
+}
+function renderTopics(){ renderChips($("#aiTopics"), pageTopics(), $("#aiNiche")); renderChips($("#aiAud"), AUDIENCE, $("#aiNotes")); }
+function toggleInto(field, text){
+  const items = listOf(field.value), i = items.findIndex(s => s.toLowerCase() === text.toLowerCase());
+  if (i >= 0) items.splice(i, 1); else items.push(text);
+  field.value = items.join(", "); renderTopics(); saveAiDraft();
+}
+$("#aiTopics").addEventListener("click", e => { const b = e.target.closest("button"); if (b) toggleInto($("#aiNiche"), b.textContent); });
+$("#aiAud").addEventListener("click", e => { const b = e.target.closest("button"); if (b) toggleInto($("#aiNotes"), b.textContent); });
+$("#aiNiche").addEventListener("input", () => { renderTopics(); saveAiDraft(); });
+$("#aiNotes").addEventListener("input", () => { renderTopics(); saveAiDraft(); });
+$("#aiMore").onclick = async () => {
+  if (!sample) return;
+  const pg = aiPageInfo(), b = $("#aiMore");
+  b.disabled = true; b.textContent = "Finding topics…";
+  try {
+    const r = await sample.json(`List short topic ideas for an Instagram/TikTok reels page.\nPage name: ${pg.title}\nHandle: ${pg.user || "none"}\nTopics already listed: ${pageTopics().join(", ")}\nReply with ONLY JSON: {"topics": ["8 new topics, 1-4 words each, specific to this page's theme, not repeating the listed ones"]}`, { modelTier: "quick", cache: false });
+    const add = arr(r && r.topics).map(t => String(t).trim()).filter(Boolean);
+    if (!add.length) throw { code: "invalid_json" };
+    extraTopics[aiKey()] = [...(extraTopics[aiKey()] || []), ...add]; renderTopics();
+  } catch(e) {
+    $("#aiState").textContent = e && e.code === "rate_limited" ? "You've hit the usage limit for now. Try again later." : "Couldn't find more topics. Try again.";
+  } finally { b.disabled = !sample; b.textContent = "More topics"; }
+};
+
+
+// ---------- rewrite: rough idea -> viral headlines ----------
+const TONES = ["Nostalgic", "Curious", "Shocking", "Funny", "Debate-starter", "Question", "Wholesome", "Mysterious"];
+let rwResult = null, rwCtl = null, rwLoadedKey = null;
+const rwKey = () => "rewrite-" + (S.profileId && profiles.some(p => p.id === S.profileId) ? S.profileId : "editor");
+const rwPageTitle = () => (profiles.find(p => p.id === S.profileId) || {}).title || "Current editor look";
+function renderTones(){ renderChips($("#rwTone"), TONES, { value: rwTones.join(",") }); }
+let rwTones = [];
+$("#rwTone").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const t = b.textContent, i = rwTones.indexOf(t);
+  if (i >= 0) rwTones.splice(i, 1); else rwTones.push(t);
+  renderTones(); saveRw();
+});
+function saveRw(){ writeAiDoc(rwKey(), { kind: "rewrite", idea: $("#rwIdea").value, tones: rwTones, result: rwResult }); }
+$("#rwIdea").addEventListener("change", saveRw);
+async function openRewrite(){
+  $("#rwPage").textContent = "For " + rwPageTitle();
+  const key = rwKey(); if (key === rwLoadedKey) return;
+  rwLoadedKey = key; let doc = null;
+  try {
+    if (userCol) { const s = await userCol.doc(key).get(); doc = s.exists ? s.data() : null; }
+    else doc = JSON.parse(localStorage.getItem("coolreeltool:" + key) || "null");
+  } catch(e) {}
+  if (key !== rwKey()) return;
+  $("#rwIdea").value = doc?.idea || ""; rwTones = arr(doc?.tones); rwResult = doc?.result || null;
+  renderTones(); renderRw();
+}
+function renderRw(){
+  const out = $("#rwOut"), r = rwResult;
+  if (!r) { out.innerHTML = `<div class="empty">Your headlines will show up here.</div>`; return; }
+  out.innerHTML = `
+    ${r.read ? `<section class="sec"><h2>Best angle</h2><p class="aitext">${esc(r.read)}</p></section>` : ""}
+    <div class="ai-head"><h2>Headlines</h2><span class="mono">Click one to use it</span></div>
+    ${arr(r.headlines).map((h, i) => `
+      <article class="idea" data-i="${i}">
+        <button class="idea-hl" data-act="use" title="Send this headline to the editor"><h3>${markHl(h.text, h.highlight)}</h3><small>Click to send to the editor</small></button>
+        ${h.angle ? `<div class="chips"><span class="chip">${esc(h.angle)}</span></div>` : ""}
+      </article>`).join("")}
+    ${r.openOn ? `<section class="sec"><h2>Where to start the clip</h2><p class="aitext">${esc(r.openOn)}</p></section>` : ""}
+    ${r.caption ? `<section class="sec"><div class="sec-h"><h2>Caption</h2><button class="btn small" data-act="copycap">Copy caption</button></div><p class="aitext cap">${esc(r.caption)}\n${esc(arr(r.hashtags).join(" "))}</p></section>` : ""}
+    <div class="qfoot"><button class="btn" data-act="more">Write more like these</button></div>
+    <p class="hint">Only post clips you own or have permission to use, and credit the source in your byline.</p>`;
+}
+async function runRewrite(more){
+  if (!sample) return;
+  const idea = $("#rwIdea").value.trim();
+  if (!idea) { $("#rwState").textContent = "Type your idea first, like “do a post for Silly Bandz, I have an old commercial for them”."; $("#rwIdea").focus(); return; }
+  const pg = profiles.find(p => p.id === S.profileId);
+  const niche = ($("#aiPage").value === (S.profileId || "") && $("#aiNiche").value.trim()) || "";
+  const prev = more && rwResult ? arr(rwResult.headlines).map(h => h.text) : [];
+  const prompt = `You write viral headlines for short-form reels in the "bold headline above a clip" style (Instagram Reels, TikTok).
+Page: ${pg ? `${pg.title} (${pg.user || "no handle"})` : `${S.name} (${S.user || "no handle"})`}${niche ? `\nPage niche: ${niche}` : ""}
+The creator's rough idea, in their words: "${idea}"
+Tone: ${rwTones.length ? rwTones.join(", ") : "whatever fits best"}${prev.length ? `\nAlready written (do not repeat or closely echo these): ${prev.join(" | ")}` : ""}
+
+Reply with ONLY a JSON object:
+{"read": "one sentence on the angle most likely to go viral for this idea",
+ "headlines": [{"text": "headline under 90 characters", "highlight": "1-3 words copied exactly from the headline to color", "angle": "2-4 word label for the hook type"}],
+ "openOn": "one sentence on which moment of the clip to open on",
+ "caption": "1-2 sentence caption ending with a question",
+ "hashtags": ["#tag"]}
+Give 8 headlines with varied hooks (nostalgia, curiosity, debate, surprise, relatability) and 5 hashtags.
+Rules: original wording, short and punchy, the way people actually talk. Use product and brand names exactly as the creator gave them. Don't invent facts, dates or numbers the creator didn't give.`;
+  rwCtl = new AbortController();
+  $("#rwGo").disabled = true; $("#rwStop").hidden = false; $("#rwState").textContent = "Writing headlines…";
+  try {
+    const r = await sample.json(prompt, { modelTier: "default", signal: rwCtl.signal, cache: false });
+    if (!r || !Array.isArray(r.headlines)) throw { code: "invalid_json" };
+    if (more && rwResult) { r.headlines = [...arr(r.headlines), ...arr(rwResult.headlines)]; r.read = r.read || rwResult.read; }
+    rwResult = r; saveRw(); renderRw();
+    $("#rwState").textContent = `Done. Click a headline to send it to the editor.`;
+  } catch(e) {
+    const code = e && e.code;
+    $("#rwState").textContent = (rwCtl && rwCtl.signal.aborted) ? "Stopped."
+      : code === "rate_limited" ? "You've hit the usage limit for now. Try again later."
+      : code === "not_granted" ? "Rewrite needs your permission. Allow it from the page's Permissions menu."
+      : "Something went wrong. Press Write headlines to try again.";
+  } finally { $("#rwGo").disabled = !sample; $("#rwStop").hidden = true; rwCtl = null; }
+}
+$("#rwGo").onclick = () => runRewrite(false);
+$("#rwStop").onclick = () => rwCtl && rwCtl.abort();
+$("#rwIdea").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runRewrite(false); });
+$("#rwOut").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b || !rwResult) return;
+  if (b.dataset.act === "more") return runRewrite(true);
+  if (b.dataset.act === "copycap") {
+    try { await navigator.clipboard.writeText(`${rwResult.caption}\n\n${arr(rwResult.hashtags).join(" ")}`); b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy caption", 1500); }
+    catch(err) { $("#rwState").textContent = "Couldn't copy here. Select the caption text and copy it yourself."; }
+    return;
+  }
+  const h = arr(rwResult.headlines)[+b.closest(".idea").dataset.i]; if (!h) return;
+  S.headline = h.text || ""; S.hlWords = h.highlight || ""; save(); syncInputs(); refresh();
+  switchTab("editor"); status("Headline sent to the editor. Add your clip and you're set.");
+});
+
+async function initAI(){
+  try { sample = window.claude?.use ? await window.claude.use("sample") : null; } catch(e) { sample = null; }
+  $("#aiGo").disabled = !sample; $("#aiMore").disabled = !sample; $("#rwGo").disabled = !sample;
+  if (!sample) $("#rwState").textContent = "Rewrite isn't available in this view. Open CoolReelTool directly to use it.";
+  if (!sample) $("#aiState").textContent = "AI ideas aren't available in this view. Open CoolReelTool directly to use them.";
+}
+
+// ---------- boot ----------
+applyMute(); refresh(); updatePlayBtn(); renderProfiles(); renderQueue(); renderAi(); renderTones(); renderRw();
+initAI();
+requestAnimationFrame(tick);
+document.fonts && document.fonts.ready.then(refresh);
+initProfiles();
+</script>
+</body>
+</html>

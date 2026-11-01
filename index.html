@@ -1505,11 +1505,34 @@ $("#rwOut").addEventListener("click", async e => {
   switchTab("editor"); status("Headline sent to the editor. Add your clip and you're set.");
 });
 
+// On your own site (e.g. Vercel), AI requests go to /api/ai, which holds the API key server-side.
+async function serverAI(){
+  if (!/^https?:$/.test(location.protocol)) return null;
+  let info = null;
+  try { info = await (await fetch("/api/ai", { cache: "no-store" })).json(); } catch(e) { return null; }
+  if (!info || !info.configured) return null;
+  const getCode = () => { try { return localStorage.getItem("coolreeltool:access") || ""; } catch(e) { return ""; } };
+  const setCode = c => { try { localStorage.setItem("coolreeltool:access", c); } catch(e) {} };
+  const call = async (prompt, opts, retried) => {
+    const r = await fetch("/api/ai", { method: "POST", signal: opts.signal,
+      headers: { "content-type": "application/json", "x-access-code": getCode() },
+      body: JSON.stringify({ prompt, tier: opts.modelTier }) });
+    const data = await r.json().catch(() => null);
+    if (r.ok && data) return data.result;
+    if (r.status === 401 && !retried) {
+      const c = window.prompt("Enter your CoolReelTool access code");
+      if (c) { setCode(c.trim()); return call(prompt, opts, true); }
+    }
+    throw { code: data && ["rate_limited", "invalid_json"].includes(data.code) ? data.code : "error" };
+  };
+  return { json: (prompt, opts = {}) => call(prompt, opts, false) };
+}
 async function initAI(){
   try { sample = window.claude?.use ? await window.claude.use("sample") : null; } catch(e) { sample = null; }
+  if (!sample) sample = await serverAI();
   $("#aiGo").disabled = !sample; $("#aiMore").disabled = !sample; $("#rwGo").disabled = !sample;
-  if (!sample) $("#rwState").textContent = "Rewrite isn't available in this view. Open CoolReelTool directly to use it.";
-  if (!sample) $("#aiState").textContent = "AI ideas aren't available in this view. Open CoolReelTool directly to use them.";
+  if (!sample) $("#rwState").textContent = "Rewrite is off. Add an API key to the server to switch it on (see README).";
+  if (!sample) $("#aiState").textContent = "AI ideas are off. Add an API key to the server to switch them on (see README).";
 }
 
 // ---------- boot ----------

@@ -12,22 +12,21 @@ img{max-width:100%}
 </style>
 </head>
 <body>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: two-column editing desk — stacked control sections (left), sticky 9:16 monitor with transport + export (right); one column on phones */
+/* Layout: two-column editing desk — grouped inset cards (left), sticky 9:16 monitor with transport + export (right); one column on phones.
+   Look: Apple-style system UI — system font, grouped grey background, borderless rounded cards, segmented controls, iOS switches */
 :root{
-  --bg:#eceef1; --panel:#ffffff; --ink:#121417; --muted:#626a75; --line:#dbdfe5; --well:#f2f4f6;
-  --rec:#e2453f; --rec-ink:#ffffff; --focus:#2f6fe4; --ok:#198a4b;
-  --f-ui:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --bg:#f2f2f7; --panel:#ffffff; --ink:#1c1c1e; --muted:#6e6e73; --line:rgba(60,60,67,.16); --well:rgba(118,118,128,.12);
+  --rec:#ff3b30; --rec-ink:#ffffff; --focus:#007aff; --ok:#34c759; --seg-on:#ffffff; --switch-off:rgba(120,120,128,.16);
+  --f-ui:-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --f-mono:ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0c0e11; --panel:#15181d; --ink:#e8ebee; --muted:#8e96a1; --line:#262b33; --well:#1c2026;
-  --rec:#ff5b55; --rec-ink:#1b0807; --focus:#6b9cff; --ok:#3cc47a; color-scheme:dark}}
+  --bg:#000000; --panel:#1c1c1e; --ink:#f5f5f7; --muted:#98989f; --line:rgba(84,84,88,.55); --well:rgba(118,118,128,.24);
+  --rec:#ff453a; --rec-ink:#ffffff; --focus:#0a84ff; --ok:#30d158; --seg-on:#636366; --switch-off:rgba(120,120,128,.32); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0c0e11; --panel:#15181d; --ink:#e8ebee; --muted:#8e96a1; --line:#262b33; --well:#1c2026;
-  --rec:#ff5b55; --rec-ink:#1b0807; --focus:#6b9cff; --ok:#3cc47a; color-scheme:dark}
+  --bg:#000000; --panel:#1c1c1e; --ink:#f5f5f7; --muted:#98989f; --line:rgba(84,84,88,.55); --well:rgba(118,118,128,.24);
+  --rec:#ff453a; --rec-ink:#ffffff; --focus:#0a84ff; --ok:#30d158; --seg-on:#636366; --switch-off:rgba(120,120,128,.32); color-scheme:dark}
 
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.45;
@@ -195,6 +194,86 @@ select{width:100%;background:var(--well);border:1px solid var(--line);border-rad
 .tchips button:hover{border-color:var(--muted)}
 .tchips button[aria-pressed="true"]{background:var(--focus);border-color:var(--focus);color:#fff}
 .qfoot .btn{flex:1 1 auto;justify-content:center}
+
+/* ===== Apple-style design pass (overrides the base styles above) ===== */
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.005em}
+.top{align-items:baseline;gap:4px 14px;margin-bottom:18px}
+.top h1{font-size:30px;font-weight:700;letter-spacing:-.025em}
+.top p{font-size:15px}
+.desk{gap:20px}
+.controls{gap:14px}
+.tabpanel{gap:14px}
+.sec,.monitor,.pcard,.qcard,.idea{border:0;border-radius:14px;box-shadow:none}
+.sec{padding:16px;gap:12px}
+.monitor{border-radius:20px;padding:20px;gap:16px}
+.sec-h h2,.sec > h2{font-size:17px;font-weight:600;letter-spacing:-.015em}
+.ai-head h2{font-size:17px;font-weight:600}
+.label,.opt{font:500 12px var(--f-ui);letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.opt{font-size:11px}
+.hint{font-size:13px;line-height:1.4}
+.mono{font:500 12px var(--f-mono)}
+.status{font-size:13px}
+
+/* text fields */
+textarea,input[type=text],select{background:var(--well);border:0;border-radius:10px;padding:10px 12px;font-size:15px;line-height:1.35;transition:box-shadow .15s}
+textarea:focus,input[type=text]:focus,select:focus{outline:none;box-shadow:0 0 0 3.5px color-mix(in srgb,var(--focus) 35%,transparent)}
+select{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.pmain .ptitle{background:transparent;padding:4px 6px;margin-left:-6px;font-size:16px;font-weight:600}
+.pmain .ptitle:focus{background:var(--well)}
+
+/* segmented controls and tabs */
+.seg,.tabs{background:var(--well);border:0;border-radius:9px;padding:2px;gap:2px;overflow:visible}
+.seg button,.tabs button{border:0!important;border-radius:7px;padding:6px 12px;color:var(--ink);font-weight:500;font-size:13px;transition:background .2s,box-shadow .2s}
+.seg button[aria-pressed="true"],.tabs button[aria-selected="true"]{background:var(--seg-on);color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.06)}
+.tabs{border-radius:11px}
+.tabs button{padding:8px 10px;font-weight:600;border-radius:9px}
+.tabs .count{background:var(--rec);color:#fff;font:600 11px var(--f-ui)}
+
+/* buttons: tinted by default, filled for the main action */
+.btn{border:0;background:var(--well);color:var(--focus);border-radius:10px;padding:8px 14px;font-weight:600;font-size:14px;transition:transform .12s ease,filter .15s,background .15s}
+.btn:hover{border:0;filter:brightness(1.05)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.rec{background:var(--rec);color:#fff}
+.btn.on{background:var(--focus);color:#fff}
+.btn.small{border-radius:8px;padding:5px 11px;font-size:13px}
+.btn:disabled{opacity:.4}
+
+/* iOS-style switches */
+.switch{font-size:14px;color:var(--ink)}
+.switch i{width:46px;height:28px;border-radius:28px;background:var(--switch-off);transition:background .25s}
+.switch i::after{top:2px;left:2px;width:24px;height:24px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18),0 0 0 .5px rgba(0,0,0,.05);transition:transform .25s cubic-bezier(.3,.7,.4,1)}
+.switch input:checked + i{background:var(--ok)}
+.switch input:checked + i::after{transform:translateX(18px)}
+
+/* media and lists */
+.drop{border:1.5px dashed color-mix(in srgb,var(--focus) 45%,transparent);border-radius:12px;padding:20px;color:var(--focus);font-weight:500;background:color-mix(in srgb,var(--focus) 5%,transparent)}
+.file,.xp,.result{background:var(--well);border:0;border-radius:12px}
+.screen{border-radius:24px;box-shadow:0 0 0 1px var(--line),0 24px 48px -24px rgba(0,0,0,.45)}
+.chip{font:500 11px var(--f-ui);border:0;background:var(--well);color:var(--muted);border-radius:6px;padding:3px 8px}
+.chip.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.chip.live{background:color-mix(in srgb,var(--rec) 15%,transparent);color:var(--rec)}
+.chip.bad{background:var(--rec);color:#fff}
+.tchips button{border:0;background:var(--well);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:500;transition:background .15s,color .15s}
+.tchips button[aria-pressed="true"]{background:var(--focus);color:#fff}
+.pcard{transition:box-shadow .15s}
+.pcard:hover{border:0;box-shadow:0 0 0 1px var(--line)}
+.pcard.active{box-shadow:0 0 0 2px var(--focus)}
+.badges button{border:0;box-shadow:0 0 0 .5px var(--line)}
+.badges button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--focus)}
+.empty{border:1.5px dashed var(--line);background:transparent;border-radius:14px}
+.hookline{background:var(--well);border:0;border-radius:10px;font-weight:500}
+.idea-hl:hover{background:var(--well)}
+.trim::before{background:var(--well);border:0;height:6px}
+.trim input::-webkit-slider-thumb{background:#fff;border:0;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.trim input::-moz-range-thumb{background:#fff;border:0;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.bar{background:var(--well)}
+#xpPct{font-family:var(--f-ui);font-weight:600}
+.res-title{font-size:16px}
+
+/* gentle panel transitions */
+@keyframes paneIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.tabpanel:not([hidden]){animation:paneIn .22s ease}
+@media (prefers-reduced-motion:reduce){.tabpanel:not([hidden]){animation:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 

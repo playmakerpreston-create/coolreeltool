@@ -33,6 +33,17 @@ These two tabs call an AI model through the small server function in `api/ai.js`
 
 AI usage is billed to your API account per request. A full niche research run is one request; a rewrite is one request.
 
+## Install it as an app
+
+Once it's deployed (it needs an https address, which Vercel gives you), CoolReelTool installs like a normal app with its own icon and window, and opens even without a connection.
+
+- **iPhone / iPad (Safari):** tap **Share → Add to Home Screen → Add**.
+- **Android (Chrome):** tap the **⋮** menu → **Install app** (or **Add to Home screen**).
+- **Mac / Windows (Chrome or Edge):** click the install icon at the right end of the address bar, or **⋮ → Cast, save and share → Install page as app**.
+- **Mac (Safari 17+):** **File → Add to Dock**.
+
+The AI tabs still need a connection. Video editing and exporting work offline.
+
 ## Run it locally
 
 Open `index.html` in Chrome, Edge or Safari. Everything except the AI tabs works straight from the file. To test the AI tabs locally, run `npx vercel dev` with `ANTHROPIC_API_KEY` set.
@@ -68,6 +79,9 @@ Profiles, AI research and settings are saved in the browser's local storage, so 
 
 ```
 index.html                     the app (HTML, CSS and JavaScript)
+manifest.webmanifest           app name, icons and window style for installing
+sw.js                          offline support for the installed app
+icons/                         app icons (home screen, dock, browser tab)
 api/ai.js                      server function for the AI tabs (Vercel)
 vercel.json                    gives the AI function up to 120 seconds
 package.json                   server dependency

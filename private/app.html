@@ -1601,28 +1601,23 @@ async function serverAI(){
   let info = null;
   try { info = await (await fetch("/api/ai", { cache: "no-store" })).json(); } catch(e) { return null; }
   if (!info || !info.configured) return null;
-  const getCode = () => { try { return localStorage.getItem("coolreeltool:access") || ""; } catch(e) { return ""; } };
-  const setCode = c => { try { localStorage.setItem("coolreeltool:access", c); } catch(e) {} };
-  const call = async (prompt, opts, retried) => {
+  const call = async (prompt, opts) => {
     const r = await fetch("/api/ai", { method: "POST", signal: opts.signal,
-      headers: { "content-type": "application/json", "x-access-code": getCode() },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt, tier: opts.modelTier }) });
     const data = await r.json().catch(() => null);
     if (r.ok && data) return data.result;
-    if (r.status === 401 && !retried) {
-      const c = window.prompt("Enter your CoolReelTool access code");
-      if (c) { setCode(c.trim()); return call(prompt, opts, true); }
-    }
+    if (r.status === 401 || r.status === 402) window.crtCheckSeat && window.crtCheckSeat();
     throw { code: data && ["rate_limited", "invalid_json"].includes(data.code) ? data.code : "error" };
   };
-  return { json: (prompt, opts = {}) => call(prompt, opts, false) };
+  return { json: (prompt, opts = {}) => call(prompt, opts) };
 }
 async function initAI(){
   try { sample = window.claude?.use ? await window.claude.use("sample") : null; } catch(e) { sample = null; }
   if (!sample) sample = await serverAI();
   $("#aiGo").disabled = !sample; $("#aiMore").disabled = !sample; $("#rwGo").disabled = !sample;
-  if (!sample) $("#rwState").textContent = "Rewrite is off. Add an API key to the server to switch it on (see README).";
-  if (!sample) $("#aiState").textContent = "AI ideas are off. Add an API key to the server to switch them on (see README).";
+  if (!sample) $("#rwState").textContent = "Rewrite is switched off on this site right now.";
+  if (!sample) $("#aiState").textContent = "AI ideas are switched off on this site right now.";
 }
 
 // ---------- boot ----------
@@ -1632,6 +1627,205 @@ requestAnimationFrame(tick);
 document.fonts && document.fonts.ready.then(refresh);
 initProfiles();
 </script>
+<!-- Paid site: account menu, seat management, session checks and export gate -->
+<style>
+.acct{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0}
+.acct .who{font-size:13px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+dialog.sheet{border:0;border-radius:18px;padding:0;width:min(460px,calc(100vw - 32px));max-height:calc(100vh - 48px);background:var(--panel);color:var(--ink);box-shadow:0 30px 80px -20px rgba(0,0,0,.5)}
+dialog.sheet::backdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.sheet-in{padding:20px;display:flex;flex-direction:column;gap:16px}
+.sheet-in h2{font-size:20px;font-weight:700;margin:0;letter-spacing:-.02em}
+.sheet-in .sec-h{gap:12px}
+.sheet-group{background:var(--well);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.seat-line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.stepper{display:inline-flex;align-items:center;gap:6px}
+.stepper input{width:58px;text-align:center;background:var(--panel)}
+.stepper .btn{min-width:34px;justify-content:center;background:var(--panel)}
+.members{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.members li{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel);border-radius:10px;padding:8px 10px;font-size:14px}
+.members li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.members li em{font-style:normal;color:var(--muted);font-size:12px;flex:none}
+.add-row{display:flex;gap:8px}.add-row input{background:var(--panel)}
+.sheet-msg{font-size:13px;color:var(--muted);min-height:1.3em;margin:0}
+.sheet-foot{display:flex;gap:8px;flex-wrap:wrap}.sheet-foot .btn{flex:1 1 auto;justify-content:center}
+.gate{position:fixed;inset:0;z-index:200;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:grid;place-items:center;padding:16px}
+.gate .card{background:var(--panel);border-radius:18px;padding:26px;max-width:380px;text-align:center;display:flex;flex-direction:column;gap:12px;box-shadow:0 30px 80px -30px rgba(0,0,0,.45)}
+.gate h2{margin:0;font-size:20px}.gate p{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
+.gate a{justify-content:center;text-decoration:none}
+.welcome{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:150;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 10px 30px -10px rgba(0,0,0,.4)}
+</style>
+
+<div class="gate" id="gate" hidden>
+  <div class="card">
+    <h2 id="gateTitle">Signed out</h2>
+    <p id="gateText"></p>
+    <a class="btn rec" id="gateBtn" href="/#signin">Sign in again</a>
+  </div>
+</div>
+
+<dialog class="sheet" id="acctSheet" aria-labelledby="acctTitle">
+  <div class="sheet-in">
+    <div class="sec-h"><h2 id="acctTitle">Account</h2><button class="btn small" id="acctClose">Done</button></div>
+    <div class="hint" id="acctEmail"></div>
+    <div id="ownerArea" hidden>
+      <div class="sheet-group">
+        <div class="seat-line">
+          <div><div style="font-weight:600">Seats</div><div class="hint" id="seatUse"></div></div>
+          <div class="stepper">
+            <button class="btn small" id="seatMinus" aria-label="Fewer seats">−</button>
+            <input type="text" inputmode="numeric" id="seatCount" aria-label="Number of seats">
+            <button class="btn small" id="seatPlus" aria-label="More seats">+</button>
+          </div>
+        </div>
+        <button class="btn" id="seatSave" hidden>Update seats</button>
+        <span class="hint">Each seat is one person on one device. Page profiles are unlimited. Changing seats updates your monthly bill, prorated.</span>
+      </div>
+      <div class="sheet-group">
+        <div style="font-weight:600">Team</div>
+        <ul class="members" id="memberList"></ul>
+        <div class="add-row">
+          <input type="text" id="addEmail" placeholder="teammate@email.com" aria-label="Teammate's email" autocomplete="off">
+          <button class="btn" id="addBtn">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-group" id="memberArea" hidden><span id="memberNote"></span></div>
+    <p class="sheet-msg" id="acctMsg"></p>
+    <div class="sheet-foot">
+      <button class="btn" id="billingBtn" hidden>Billing</button>
+      <button class="btn" id="signOutBtn">Sign out</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const q = (s) => document.querySelector(s);
+  const escapeText = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let me = null;
+
+  const box = document.createElement("div");
+  box.className = "acct";
+  box.innerHTML = '<span class="who" id="acctWho"></span><button class="btn small" id="acctBtn">Account</button>';
+  q(".top").appendChild(box);
+
+  const GATES = {
+    signed_in_elsewhere: ["Signed in on another device", "Each seat works on one device at a time. This account just signed in somewhere else, so this window was signed out.", "Sign in again", "/#signin"],
+    no_subscription: ["Subscription isn't active", "This team's subscription has ended or a payment failed. The account owner can fix it from Billing.", "See plans", "/#pricing"],
+    no_seat: ["No free seat", "Your team has more people than seats. Ask the account owner to add a seat.", "Back to home", "/"],
+    signed_out: ["Signed out", "Sign in again to keep making reels.", "Sign in", "/#signin"]
+  };
+  function gate(code) {
+    const [title, text, label, href] = GATES[code] || GATES.signed_out;
+    q("#gateTitle").textContent = title; q("#gateText").textContent = text;
+    q("#gateBtn").textContent = label; q("#gateBtn").href = href;
+    q("#gate").hidden = false;
+    try { if (typeof vid !== "undefined") vid.pause(); } catch (e) {}
+  }
+
+  // -> "ok" | "blocked" | "offline"
+  async function check() {
+    let r;
+    try { r = await fetch("/api/me", { cache: "no-store" }); } catch (e) { return "offline"; }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { gate(d.code); return "blocked"; }
+    me = d; render(); return "ok";
+  }
+  window.crtCheckSeat = check;
+
+  function render() {
+    if (!me) return;
+    q("#acctWho").textContent = me.isOwner ? `${me.email} · ${me.used} of ${me.seats} seats` : me.email;
+    q("#acctEmail").textContent = `Signed in as ${me.email}`;
+    q("#ownerArea").hidden = !me.isOwner; q("#billingBtn").hidden = !me.isOwner; q("#memberArea").hidden = me.isOwner;
+    if (!me.isOwner) { q("#memberNote").textContent = `You have a seat on ${me.owner}'s team.`; return; }
+    q("#seatUse").textContent = `${me.used} of ${me.seats} in use`;
+    if (document.activeElement !== q("#seatCount")) q("#seatCount").value = me.seats;
+    q("#seatSave").hidden = Number(q("#seatCount").value) === me.seats;
+    q("#memberList").innerHTML = `<li><span>${escapeText(me.owner)}</span><em>Owner</em></li>` +
+      me.members.map((m) => `<li><span>${escapeText(m)}</span><button class="btn small" data-remove="${escapeText(m)}">Remove</button></li>`).join("");
+  }
+  const msg = (t) => { q("#acctMsg").textContent = t; };
+  const ERR = {
+    no_free_seats: "All seats are in use. Add a seat first.",
+    in_other_team: "That person already has a seat on another team.",
+    seats_in_use: "Remove a teammate before lowering seats below the number in use.",
+    bad_email: "Enter a valid email address.",
+    billing_failed: "Billing didn't go through. Try again, or open Billing to check your card.",
+    owner_only: "Only the account owner can do that."
+  };
+  async function post(url, body) {
+    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 402) { gate(d.code); throw d; }
+    if (!r.ok) throw d;
+    return d;
+  }
+
+  q("#acctBtn").onclick = () => { msg(""); render(); q("#acctSheet").showModal(); check(); };
+  q("#acctClose").onclick = () => q("#acctSheet").close();
+  q("#seatMinus").onclick = () => { q("#seatCount").value = Math.max(1, (Number(q("#seatCount").value) || 1) - 1); q("#seatSave").hidden = Number(q("#seatCount").value) === me.seats; };
+  q("#seatPlus").onclick = () => { q("#seatCount").value = Math.min(100, (Number(q("#seatCount").value) || 1) + 1); q("#seatSave").hidden = Number(q("#seatCount").value) === me.seats; };
+  q("#seatCount").addEventListener("input", () => { q("#seatSave").hidden = Number(q("#seatCount").value) === me.seats; });
+  q("#seatSave").onclick = async () => {
+    const seats = Number(q("#seatCount").value);
+    q("#seatSave").disabled = true; msg("Updating your plan…");
+    try { me = await post("/api/seats", { seats }); render(); msg(`You now have ${me.seats} seat${me.seats === 1 ? "" : "s"}.`); }
+    catch (e) { msg(ERR[e && e.code] || "Couldn't change seats. Try again."); }
+    finally { q("#seatSave").disabled = false; }
+  };
+  q("#addBtn").onclick = async () => {
+    const email = q("#addEmail").value.trim();
+    if (!email) return;
+    q("#addBtn").disabled = true; msg("Adding…");
+    try {
+      const d = await post("/api/team", { action: "add", email });
+      me = d; render(); q("#addEmail").value = "";
+      msg(d.emailed === false ? `Added ${email}, but the invite email didn't send. They can sign in from the home page.` : `Added ${email}. They've been emailed a sign-in link.`);
+    } catch (e) { msg(ERR[e && e.code] || "Couldn't add that person. Try again."); }
+    finally { q("#addBtn").disabled = false; }
+  };
+  q("#addEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") q("#addBtn").click(); });
+  q("#memberList").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-remove]"); if (!b) return;
+    if (!b.dataset.confirm) { b.dataset.confirm = "1"; b.textContent = "Tap to confirm"; setTimeout(() => { if (b.isConnected) { delete b.dataset.confirm; b.textContent = "Remove"; } }, 3000); return; }
+    try { me = await post("/api/team", { action: "remove", email: b.dataset.remove }); render(); msg("Removed. They've been signed out."); }
+    catch (err) { msg(ERR[err && err.code] || "Couldn't remove them. Try again."); }
+  });
+  q("#billingBtn").onclick = async () => {
+    msg("Opening billing…");
+    try { location.href = (await post("/api/portal")).url; } catch (e) { msg(ERR[e && e.code] || "Couldn't open billing. Try again."); }
+  };
+  q("#signOutBtn").onclick = async () => {
+    try { await fetch("/api/logout", { method: "POST" }); } catch (e) {}
+    location.href = "/";
+  };
+
+  // Every export checks the seat first: a seat signed in elsewhere or a lapsed plan can't export.
+  let passing = false;
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("#exportBtn, #qExport");
+    if (!b || passing || b.disabled) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    const r = await check();
+    if (r === "offline") { if (typeof status === "function") status("You're offline. Connect to the internet to export."); return; }
+    if (r !== "ok") return;
+    passing = true; b.click(); passing = false;
+  }, true);
+
+  check();
+  setInterval(check, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+
+  if (new URLSearchParams(location.search).has("welcome")) {
+    const t = document.createElement("div"); t.className = "welcome";
+    t.textContent = "You're in. Open Account to add teammates.";
+    document.body.appendChild(t); setTimeout(() => t.remove(), 6000);
+    history.replaceState(null, "", "/app");
+  }
+})();
+</script>
+
 <script>
 // installable app: register the offline worker when served over https (or localhost)
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {

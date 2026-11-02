@@ -2,8 +2,11 @@
   "name": "coolreeltool",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.3.0"
+    "@anthropic-ai/sdk": "^1.3.0",
+    "stripe": "^23.1.0"
   }
 }

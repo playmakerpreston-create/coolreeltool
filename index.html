@@ -546,6 +546,16 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
       <div class="sec-h"><span class="mono" id="trimAT">0:00.0</span><span class="mono" id="trimBT">0:00.0</span></div>
     </div>
 
+    <div class="export" id="qualityRow">
+      <div class="sec-h">
+        <span class="label">Export quality</span>
+        <div class="seg" id="qualitySeg" role="group" aria-label="Export quality">
+          <button data-v="1080">1080p</button><button data-v="1440">1440p</button><button data-v="2160">4K</button>
+        </div>
+      </div>
+      <span class="hint" id="qualityHint"></span>
+    </div>
+
     <div class="export">
       <div class="xp" id="xp" hidden>
         <div class="xp-top"><span class="xp-dot"></span><span class="xp-title">Exporting reel</span><span id="xpPct">0%</span></div>
@@ -579,7 +589,7 @@ const DEFAULTS = {
   size: "M", aspect: "16:9", margin: 6, guides: false,
   lockOn: true, name: "Your Page", user: "@yourpage", verified: true, align: "left",
   byline: "Video: @source", blAlign: "center", muted: false,
-  safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "center", hlWords: "telepathically", hlColor: "#1d9bf0"
+  quality: "1440", safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "center", hlWords: "telepathically", hlColor: "#1d9bf0"
 };
 const S = { ...DEFAULTS };
 try { Object.assign(S, JSON.parse(localStorage.getItem("reeldesk:v2") || "{}")); } catch(e) {}
@@ -804,6 +814,7 @@ function drawVideoBox(ctx, box){
   ctx.save(); ctx.beginPath(); ctx.rect(box.x, box.y, box.w, box.h); ctx.clip();
   if (hasVideo && vid.readyState >= 2) {
     const r = videoRect(box);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
     ctx.drawImage(vid, r.x, r.y, r.w, r.h);
   } else {
     ctx.fillStyle = C().ph; ctx.fillRect(box.x, box.y, box.w, box.h);
@@ -883,7 +894,7 @@ function seg(id, key){
   const el = $(id);
   el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[key] = b.dataset.v; save(); refresh(); });
 }
-seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor");
+seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor"); seg("#qualitySeg", "quality");
 $("#hAlignSeg").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   S.hAlign = b.dataset.v;
@@ -912,6 +923,9 @@ function refresh(){
   $("#marginVal").textContent = `· ${S.margin}%`;
   $("#guideBox").classList.toggle("show", S.guides && !exporting); // preview-only overlay, never recorded
   document.querySelectorAll("#badgeSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.badgeColor || "#1d9bf0")));
+  const qk = QUALITY[S.quality] ? S.quality : "1440";
+  document.querySelectorAll("#qualitySeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === qk));
+  $("#qualityHint").textContent = QUALITY[qk].hint;
   $("#badgeField").style.opacity = S.verified ? 1 : .45;
   $("#safe").checked = !!S.safe; $("#safeBox").toggleAttribute("hidden", !S.safe || exporting); // SVG elements have no .hidden property, so set the attribute
   $("#gL").style.left = S.margin + "%"; $("#gR").style.left = (100 - S.margin) + "%";
@@ -980,7 +994,7 @@ const slug = s => (s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^
 let cancelled = false, thumbTaken = false;
 document.addEventListener("visibilitychange", () => { if (exporting && document.hidden) exportWasHidden = true; });
 function setLocked(on){
-  [".controls", ".scrub", ".transport", "#trimBox"].forEach(s => { const el = $(s); el.inert = on; el.classList.toggle("locked", on); });
+  [".controls", ".scrub", ".transport", "#trimBox", "#qualityRow"].forEach(s => { const el = $(s); el.inert = on; el.classList.toggle("locked", on); });
   $("#recBadge").hidden = !on;
 }
 // keep recording even if something pauses the video mid-export
@@ -991,6 +1005,19 @@ $("#cancelBtn").onclick = () => {
 };
 
 // record the current editor state to a video; returns {blob, ext, withAudio} or null if cancelled
+// Export sizes. The preview stays at 1080×1920 to keep editing smooth; at export the whole frame is
+// re-drawn at the chosen size (text and graphics stay sharp, not stretched) and recorded at a higher bitrate.
+const QUALITY = {
+  "1080": { k: 1, bps: 16_000_000, hint: "1080×1920 Full HD. Smallest files, smooth on any computer." },
+  "1440": { k: 4 / 3, bps: 28_000_000, hint: "1440×2560. Noticeably sharper text and detail. Smooth on most computers." },
+  "2160": { k: 2, bps: 45_000_000, hint: "2160×3840 4K. Sharpest, with big files. Needs a fast computer, or the video can stutter. Instagram and TikTok show reels at 1080p." }
+};
+let lastExportSize = "1080×1920";
+function setStageScale(k){
+  stage.width = Math.round(W * k); stage.height = Math.round(H * k);
+  sctx.setTransform(k, 0, 0, k, 0, 0);
+  sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = "high";
+}
 async function recordReel(label){
   ensureAudio();
   const withAudio = !S.muted && !!audioDest;
@@ -1008,18 +1035,22 @@ async function recordReel(label){
   // let the decoder buffer so the opening second doesn't stutter
   if (vid.readyState < 3) await Promise.race([once(vid, "canplay"), new Promise(r => setTimeout(r, 1500))]);
   // render everything that doesn't move (background, lockup, headline, byline) once, then only redraw the video each frame
-  const layer = document.createElement("canvas"); layer.width = W; layer.height = H;
-  draw(layer.getContext("2d"), true);
+  const q = QUALITY[S.quality] || QUALITY["1440"];
+  setStageScale(q.k);
+  lastExportSize = `${stage.width}×${stage.height}`;
+  const layer = document.createElement("canvas"); layer.width = stage.width; layer.height = stage.height;
+  const lctx = layer.getContext("2d"); lctx.setTransform(q.k, 0, 0, q.k, 0, 0);
+  draw(lctx, true);
   const box = { ...lastBox };
   // the stage keeps its pixels between frames, so after one full paint only the video box needs redrawing
-  sctx.drawImage(layer, 0, 0);
+  sctx.drawImage(layer, 0, 0, W, H);
   const paint = () => drawVideoBox(sctx, box);
   paint();
   // capture at a steady 30fps; each animation frame only repaints the video box (see tick)
   const stream = stage.captureStream(30);
   smoothExport = false; staticPaint = paint;
   if (withAudio) audioDest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10_000_000, audioBitsPerSecond: 192_000 });
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: q.bps, audioBitsPerSecond: 192_000 });
   const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
   const stopped = once(rec, "stop");
   rec.start(1000);
@@ -1032,6 +1063,7 @@ async function recordReel(label){
   stream.getVideoTracks().forEach(t => t.stop());
   try { wake && wake.release(); } catch(e) {}
   smoothExport = false; staticPaint = null;
+  setStageScale(1); // back to the lighter preview size
   vid.loop = true; exporting = false; $("#xp").hidden = true;
   if (!batchRunning) setLocked(false);
   if (cancelled) {
@@ -1052,7 +1084,7 @@ $("#exportBtn").onclick = async () => {
   if (!out) return;
   lastExport = { blob: out.blob, name: `${slug(S.headline)}.${out.ext}` };
   if (!thumbTaken) $("#resThumb").getContext("2d").drawImage(stage, 0, 0, 108, 192);
-  $("#resultText").innerHTML = [fmt(trim.end - trim.start), out.ext.toUpperCase(), "1080×1920", (out.blob.size/1048576).toFixed(1) + " MB", out.withAudio ? "With sound" : "No sound"]
+  $("#resultText").innerHTML = [fmt(trim.end - trim.start), out.ext.toUpperCase(), lastExportSize, (out.blob.size/1048576).toFixed(1) + " MB", out.withAudio ? "With sound" : "No sound"]
     .map(c => `<span class="chip">${c}</span>`).join("");
   $("#result").hidden = false;
   status(out.ext === "webm" ? "This browser can only record WebM. Instagram and TikTok want MP4, so export from Chrome or Safari for MP4." : "Done. Press Save to download it.");

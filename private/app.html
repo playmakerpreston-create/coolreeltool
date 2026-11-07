@@ -391,6 +391,27 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
         <label class="switch"><input type="checkbox" id="lockOn"><i></i><span class="opt">Optional</span></label>
       </div>
       <div class="lock-body" id="lockBody">
+        <div class="field">
+          <span class="label">Name on post</span>
+          <div class="seg" id="mainWhoSeg" role="group" aria-label="Name on the main post">
+            <button data-v="page">My page</button><button data-v="custom">Custom</button>
+          </div>
+        </div>
+        <div class="lock-body" id="mainCustom" hidden>
+          <div class="avatar-pick">
+            <canvas id="cAvPrev" width="96" height="96"></canvas>
+            <label class="btn" for="cAvIn">Change photo</label>
+            <button class="btn" id="cAvRemove" hidden>Remove</button>
+            <input type="file" id="cAvIn" accept="image/*" hidden>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="cName">Name</label><input type="text" id="cName" placeholder="Poster's name"></div>
+            <div class="field"><label class="label" for="cUser">Username</label><input type="text" id="cUser" placeholder="@handle"></div>
+          </div>
+          <label class="switch"><input type="checkbox" id="cVerified"><i></i>Verified badge</label>
+          <span class="hint">Shown on this post instead of your page. Your page details below stay saved.</span>
+        </div>
+        <span class="label">Your page</span>
         <div class="avatar-pick">
           <canvas id="avPrev" width="96" height="96"></canvas>
           <label class="btn" for="avIn">Change photo</label>
@@ -417,6 +438,36 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
             <button data-v="#ffffff" style="background:#ffffff" aria-label="White" title="White"></button>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Quoted post -->
+    <section class="sec">
+      <div class="sec-h"><h2>Quoted post</h2>
+        <label class="switch"><input type="checkbox" id="qOn"><i></i><span class="opt">Optional</span></label>
+      </div>
+      <div class="lock-body" id="qBody">
+        <textarea id="qText" rows="3" aria-label="Quoted post text" placeholder="The post you're quoting. It shows in a card under the video."></textarea>
+        <div class="field">
+          <span class="label">Name on quote</span>
+          <div class="seg" id="qWhoSeg" role="group" aria-label="Name on the quoted post">
+            <button data-v="custom">Custom</button><button data-v="page">My page</button>
+          </div>
+        </div>
+        <div class="lock-body" id="qCustom">
+          <div class="avatar-pick">
+            <canvas id="qAvPrev" width="96" height="96"></canvas>
+            <label class="btn" for="qAvIn">Change photo</label>
+            <button class="btn" id="qAvRemove" hidden>Remove</button>
+            <input type="file" id="qAvIn" accept="image/*" hidden>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="qName">Name</label><input type="text" id="qName" placeholder="Poster's name"></div>
+            <div class="field"><label class="label" for="qUser">Username</label><input type="text" id="qUser" placeholder="@handle"></div>
+          </div>
+          <label class="switch"><input type="checkbox" id="qVerified"><i></i>Verified badge</label>
+        </div>
+        <span class="hint">Only put a real account's name on words they actually posted.</span>
       </div>
     </section>
 
@@ -592,12 +643,15 @@ const DEFAULTS = {
   size: "M", aspect: "16:9", margin: 6, guides: false,
   lockOn: true, name: "Your Page", user: "@yourpage", verified: true, align: "left",
   byline: "Video: @source", blAlign: "center", muted: false,
+  mainWho: "page", cName: "", cUser: "", cVerified: true,
+  qOn: false, qWho: "custom", qName: "", qUser: "", qVerified: true, qText: "",
   quality: "1440", safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "left", hWeight: "400", hlWords: "telepathically", hlColor: "#1d9bf0"
 };
 const S = { ...DEFAULTS };
 try { Object.assign(S, JSON.parse(localStorage.getItem("reeldesk:v2") || "{}")); } catch(e) {}
 const save = () => { try { localStorage.setItem("reeldesk:v2", JSON.stringify(S)); } catch(e) {} };
 let avatar = null, hasVideo = false, exporting = false, lastExport = null;
+let cAvatar = null, qAvatar = null; // photos for a custom main-post name and for the quoted post
 // crop: zoom is relative to "fill the frame"; px/py place the video within its overflow (0 = left/top edge, 0.5 = centered, 1 = right/bottom edge)
 const crop = { zoom: 1, px: 0.5, py: 0.5 };
 let lastBox = null;
@@ -736,6 +790,23 @@ $("#avIn").addEventListener("change", e => {
   const img = new Image(); img.onload = () => { avatar = img; refresh(); }; img.src = URL.createObjectURL(f);
 });
 $("#avRemove").onclick = () => { avatar = null; refresh(); };
+function bindAvatar(inId, rmId, set){
+  $(inId).addEventListener("change", e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    const img = new Image(); img.onload = () => { set(img); refresh(); }; img.src = URL.createObjectURL(f);
+  });
+  $(rmId).onclick = () => { set(null); refresh(); };
+}
+bindAvatar("#cAvIn", "#cAvRemove", i => { cAvatar = i; });
+bindAvatar("#qAvIn", "#qAvRemove", i => { qAvatar = i; });
+// whose name, handle and photo a post shows: the page's own branding, or custom (e.g. the original poster)
+function who(kind){
+  const src = kind === "quote" ? (S.qWho || "custom") : (S.mainWho || "page");
+  if (src === "page") return { name: S.name, user: S.user, verified: S.verified, img: avatar };
+  return kind === "quote"
+    ? { name: S.qName, user: S.qUser, verified: S.qVerified !== false, img: qAvatar }
+    : { name: S.cName, user: S.cUser, verified: S.cVerified !== false, img: cAvatar };
+}
 
 // ---------- drawing ----------
 function wrap(ctx, text, maxW){
@@ -759,18 +830,27 @@ function layout(ctx){
   ctx.font = `400 30px ${SANS}`;
   const bl = S.byline.trim() ? wrap(ctx, S.byline, maxW) : [];
   const LOCK = 104, blh = 40;
-  const total = (S.lockOn ? LOCK + 34 : 0) + (hl.length ? hl.length*lh + 30 : 0) + box.h + (bl.length ? 30 + bl.length*blh : 0);
+  // quoted post card under the video
+  let q = null;
+  if (S.qOn && (S.qText || "").trim()) {
+    const qw = box.w - 48, pad = 34, lhq = 52;
+    ctx.font = `400 40px ${SANS}`;
+    const lines = wrap(ctx, S.qText, qw - 2*pad);
+    q = { x: box.x + 24, w: qw, pad, lh: lhq, lines, h: pad + 58 + 22 + lines.length*lhq - (lhq - 44) + pad };
+  }
+  const total = (S.lockOn ? LOCK + 34 : 0) + (hl.length ? hl.length*lh + 30 : 0) + box.h + (q ? 36 + q.h : 0) + (bl.length ? 30 + bl.length*blh : 0);
   let y = Math.max(40, Math.round((H - total) / 2));
-  const L = { m, tm, maxW, fs, lh, hl, bl, blh, LOCK, box };
+  const L = { m, tm, maxW, fs, lh, hl, bl, blh, LOCK, box, q };
   if (S.lockOn) { L.lockY = y; y += LOCK + 34; }
   if (hl.length) { L.hlY = y; y += hl.length*lh + 30; }
   box.y = y; y += box.h;
+  if (q) { q.y = y + 36; y = q.y + q.h; }
   if (bl.length) L.blY = y + 30;
   return L;
 }
 const C = () => S.bg === "white"
-  ? { bg:"#ffffff", text:"#0f1419", sub:"#536471", by:"#6b7280", ph:"#eef0f2", phLine:"rgba(0,0,0,.2)", ph1:"rgba(0,0,0,.55)", ph2:"rgba(0,0,0,.38)" }
-  : { bg:"#000000", text:"#f1f2f3", sub:"#8b949e", by:"#7d858f", ph:"#17191d", phLine:"rgba(255,255,255,.22)", ph1:"rgba(255,255,255,.6)", ph2:"rgba(255,255,255,.38)" };
+  ? { bg:"#ffffff", text:"#0f1419", sub:"#536471", by:"#6b7280", ph:"#eef0f2", phLine:"rgba(0,0,0,.2)", ph1:"rgba(0,0,0,.55)", ph2:"rgba(0,0,0,.38)", card:"#ffffff", cardLine:"rgba(0,0,0,.14)" }
+  : { bg:"#000000", text:"#f1f2f3", sub:"#8b949e", by:"#7d858f", ph:"#17191d", phLine:"rgba(255,255,255,.22)", ph1:"rgba(255,255,255,.6)", ph2:"rgba(255,255,255,.38)", card:"#0a0a0a", cardLine:"rgba(255,255,255,.2)" };
 const norm = w => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 function highlightMask(words){
   const n = words.map(norm), mask = words.map(() => false);
@@ -788,30 +868,52 @@ function badge(ctx, x, cy, s){
   ctx.beginPath(); ctx.moveTo(cx - s*0.22, cy + s*0.01); ctx.lineTo(cx - s*0.06, cy + s*0.17); ctx.lineTo(cx + s*0.23, cy - s*0.15);
   ctx.strokeStyle = isWhite ? "#0f1419" : "#fff"; ctx.lineWidth = s*0.11; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke();
 }
-function drawAvatar(ctx, x, y, d){
+function drawAvatar(ctx, x, y, d, img = avatar, name = S.name){
   ctx.save(); ctx.beginPath(); ctx.arc(x + d/2, y + d/2, d/2, 0, Math.PI*2); ctx.clip();
-  if (avatar) { const s = Math.max(d/avatar.width, d/avatar.height); ctx.drawImage(avatar, x + (d - avatar.width*s)/2, y + (d - avatar.height*s)/2, avatar.width*s, avatar.height*s); }
+  if (img) { const s = Math.max(d/img.width, d/img.height); ctx.drawImage(img, x + (d - img.width*s)/2, y + (d - img.height*s)/2, img.width*s, img.height*s); }
   else {
     ctx.fillStyle = "#3a3f47"; ctx.fillRect(x, y, d, d);
     ctx.fillStyle = "#c9ced6"; ctx.font = `600 ${d*0.42}px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText((S.name.trim()[0] || "?").toUpperCase(), x + d/2, y + d/2 + 2);
+    ctx.fillText(((name || "").trim()[0] || "?").toUpperCase(), x + d/2, y + d/2 + 2);
   }
   ctx.restore();
 }
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function drawQuote(ctx, q){
+  const c = C();
+  roundRect(ctx, q.x, q.y, q.w, q.h, 28); ctx.fillStyle = c.card; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = c.cardLine; ctx.stroke();
+  const p = who("quote"), d = 58, x = q.x + q.pad, y = q.y + q.pad;
+  const name = (p.name || "").trim() || "Name", user = (p.user || "").trim();
+  drawAvatar(ctx, x, y, d, p.img, name);
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const cy = y + d/2; let tx = x + d + 16;
+  ctx.font = `700 38px ${SANS}`; ctx.fillStyle = c.text; ctx.fillText(name, tx, cy); tx += ctx.measureText(name).width + 10;
+  if (p.verified) { badge(ctx, tx, cy, 34); tx += 34 + 12; }
+  if (user) {
+    ctx.save(); ctx.beginPath(); ctx.rect(tx, y, q.x + q.w - q.pad - tx, d); ctx.clip();
+    ctx.font = `400 34px ${SANS}`; ctx.fillStyle = c.sub; ctx.fillText(user, tx, cy); ctx.restore();
+  }
+  ctx.font = `400 40px ${SANS}`; ctx.fillStyle = c.text; ctx.textBaseline = "top";
+  q.lines.forEach((l, i) => ctx.fillText(l, x, y + d + 22 + i*q.lh));
+}
 function drawLockup(ctx, L){
-  const d = L.LOCK, gap = 22;
-  const name = S.name.trim() || "Name", user = S.user.trim();
+  const d = L.LOCK, gap = 22, p = who("main");
+  const name = (p.name || "").trim() || "Name", user = (p.user || "").trim();
   ctx.font = `700 40px ${SANS}`; const nw = ctx.measureText(name).width;
   ctx.font = `400 34px ${SANS}`; const uw = user ? ctx.measureText(user).width : 0;
-  const bs = 38, textW = Math.max(nw + (S.verified ? bs + 10 : 0), uw);
+  const bs = 38, textW = Math.max(nw + (p.verified ? bs + 10 : 0), uw);
   const x0 = S.align === "center" ? Math.round((W - (d + gap + textW)) / 2) : L.m + 6;
   const y = L.lockY;
-  drawAvatar(ctx, x0, y, d);
+  drawAvatar(ctx, x0, y, d, p.img, name);
   const tx = x0 + d + gap;
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   const nameY = user ? y + 46 : y + d/2 + 14;
   ctx.fillStyle = C().text; ctx.font = `700 40px ${SANS}`; ctx.fillText(name, tx, nameY);
-  if (S.verified) badge(ctx, tx + nw + 10, nameY - 14, bs);
+  if (p.verified) badge(ctx, tx + nw + 10, nameY - 14, bs);
   if (user) { ctx.fillStyle = C().sub; ctx.font = `400 34px ${SANS}`; ctx.fillText(user, tx, y + 92); }
 }
 function drawVideoBox(ctx, box){
@@ -852,6 +954,7 @@ function draw(ctx, skipVideo){
   }
   if (!skipVideo) drawVideoBox(ctx, L.box);
   lastBox = L.box;
+  if (L.q) drawQuote(ctx, L.q);
   if (L.bl.length) {
     const al = S.blAlign || "center";
     const bx = al === "left" ? L.box.x + 4 : al === "right" ? L.box.x + L.box.w - 4 : W/2;
@@ -898,18 +1001,18 @@ function seg(id, key){
   const el = $(id);
   el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[key] = b.dataset.v; save(); refresh(); });
 }
-seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor"); seg("#qualitySeg", "quality"); seg("#hWeightSeg", "hWeight");
+seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor"); seg("#qualitySeg", "quality"); seg("#hWeightSeg", "hWeight"); seg("#mainWhoSeg", "mainWho"); seg("#qWhoSeg", "qWho");
 $("#hAlignSeg").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   S.hAlign = b.dataset.v;
   if (S.hAlign !== "right") S.align = S.hAlign; // keep the lockup on the same edge as the headline
   save(); refresh();
 });
-[["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"]].forEach(([id, key]) => {
+[["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"],["#cName","cName"],["#cUser","cUser"],["#qName","qName"],["#qUser","qUser"],["#qText","qText"]].forEach(([id, key]) => {
   const el = $(id); el.value = S[key];
   el.addEventListener("input", () => { S[key] = el.value; save(); refresh(); });
 });
-[["#lockOn","lockOn"],["#pVerified","verified"],["#guides","guides"],["#safe","safe"]].forEach(([id, key]) => {
+[["#lockOn","lockOn"],["#pVerified","verified"],["#guides","guides"],["#safe","safe"],["#cVerified","cVerified"],["#qOn","qOn"],["#qVerified","qVerified"]].forEach(([id, key]) => {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; save(); refresh(); });
 });
 $("#margin").value = S.margin;
@@ -937,6 +1040,17 @@ function refresh(){
   $("#avRemove").hidden = !avatar;
   const pv = $("#avPrev").getContext("2d"); pv.clearRect(0,0,96,96);
   pv.save(); pv.scale(96/104, 96/104); drawAvatar(pv, 0, 0, 104); pv.restore();
+  document.querySelectorAll("#mainWhoSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.mainWho || "page")));
+  document.querySelectorAll("#qWhoSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.qWho || "custom")));
+  $("#mainCustom").hidden = (S.mainWho || "page") !== "custom";
+  $("#qCustom").hidden = (S.qWho || "custom") !== "custom";
+  $("#qOn").checked = !!S.qOn; $("#qBody").style.opacity = S.qOn ? 1 : .45;
+  $("#cVerified").checked = S.cVerified !== false; $("#qVerified").checked = S.qVerified !== false;
+  $("#cAvRemove").hidden = !cAvatar; $("#qAvRemove").hidden = !qAvatar;
+  [["#cAvPrev", cAvatar, S.cName], ["#qAvPrev", qAvatar, S.qName]].forEach(([id, img, nm]) => {
+    const g = $(id).getContext("2d"); g.clearRect(0, 0, 96, 96);
+    g.save(); g.scale(96/104, 96/104); drawAvatar(g, 0, 0, 104, img, nm || "?"); g.restore();
+  });
   $("#exportBtn").disabled = !hasVideo || exporting;
   $("#queueBtn").disabled = !hasVideo || exporting;
   $("#cropBox").hidden = !hasVideo;
@@ -1128,15 +1242,15 @@ $(".tabs").addEventListener("click", e => { const b = e.target.closest("button[d
 
 // put every text field back in line with S (after applying a profile or a queued reel)
 function syncInputs(){
-  [["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"]].forEach(([id, k]) => { $(id).value = S[k] ?? ""; });
+  [["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"],["#cName","cName"],["#cUser","cUser"],["#qName","qName"],["#qUser","qUser"],["#qText","qText"]].forEach(([id, k]) => { $(id).value = S[k] ?? ""; });
   $("#margin").value = S.margin; applyMute();
 }
 const loadImg = src => new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
-function avatarData(){
-  if (!avatar) return null;
+function avatarData(img = avatar){
+  if (!img) return null;
   const c = document.createElement("canvas"); c.width = c.height = 200; const x = c.getContext("2d");
-  const s = Math.max(200/avatar.width, 200/avatar.height);
-  x.drawImage(avatar, (200 - avatar.width*s)/2, (200 - avatar.height*s)/2, avatar.width*s, avatar.height*s);
+  const s = Math.max(200/img.width, 200/img.height);
+  x.drawImage(img, (200 - img.width*s)/2, (200 - img.height*s)/2, img.width*s, img.height*s);
   return c.toDataURL("image/jpeg", .88);
 }
 
@@ -1289,17 +1403,19 @@ function addToQueue(){
   const t = document.createElement("canvas"); t.width = 108; t.height = 192; t.getContext("2d").drawImage(stage, 0, 0, 108, 192);
   queue.push({
     id: ++qid, settings: { ...S }, file: curFile, trim: { ...trim }, crop: { ...crop }, avatarSrc: avatarData(),
+    cAvatarSrc: avatarData(cAvatar), qAvatarSrc: avatarData(qAvatar),
     thumb: t.toDataURL("image/jpeg", .8), status: "waiting", out: null,
     profileTitle: (profiles.find(p => p.id === S.profileId) || {}).title || ""
   });
   // clear the editor for the next reel but keep the page's look
-  clearVideo(); S.headline = ""; S.hlWords = ""; save(); syncInputs(); refresh(); renderQueue();
+  clearVideo(); S.headline = ""; S.hlWords = ""; S.qText = ""; save(); syncInputs(); refresh(); renderQueue();
   status(`Added to queue (${queue.length}). Add the next video and headline, or open the Queue tab to export.`);
 }
 $("#queueBtn").onclick = addToQueue;
 async function applySnapshot(q){
   Object.assign(S, q.settings); save(); syncInputs();
   avatar = await loadImg(q.avatarSrc);
+  cAvatar = await loadImg(q.cAvatarSrc); qAvatar = await loadImg(q.qAvatarSrc);
   await setVideo(q.file);
   trim.start = q.trim.start; trim.end = q.trim.end; syncTrim();
   crop.px = q.crop.px; crop.py = q.crop.py; setZoom(q.crop.zoom);

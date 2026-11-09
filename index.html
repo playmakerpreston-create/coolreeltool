@@ -314,6 +314,24 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
       </div>
     </section>
 
+    <!-- Import a post -->
+    <section class="sec">
+      <div class="sec-h"><h2>Import a post</h2><span class="opt">Optional</span></div>
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <span class="label">Fill in</span>
+        <div class="seg" id="impToSeg" role="group" aria-label="Which post to fill in">
+          <button data-v="main">Main post</button><button data-v="quote">Quoted post</button>
+        </div>
+      </div>
+      <textarea id="impText" rows="3" aria-label="Post to import" placeholder="Paste a post here: select it on X, copy, then paste. The name, @handle and text fill in for you."></textarea>
+      <div class="qfoot">
+        <button class="btn" id="impPaste">Fill from text</button>
+        <label class="btn" for="impShot" id="impShotBtn" hidden>Read a screenshot</label>
+        <input type="file" id="impShot" accept="image/*" hidden>
+      </div>
+      <span class="hint" id="impState">Paste a copied post, or upload a screenshot of one. Add the profile photo yourself.</span>
+    </section>
+
     <!-- Background -->
     <section class="sec">
       <div class="sec-h"><h2>Background</h2>
@@ -354,6 +372,23 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
     <!-- Video -->
     <section class="sec">
       <div class="sec-h"><h2>Video</h2><span class="mono" id="vidLen">No video</span></div>
+      <label class="switch"><input type="checkbox" id="noVid"><i></i>No video (headline only)</label>
+      <div class="field" id="stillOpts" hidden>
+        <div class="row" style="align-items:center;justify-content:space-between">
+          <span class="label">Export as</span>
+          <div class="seg" id="stillAsSeg" role="group" aria-label="Export a headline-only post as">
+            <button data-v="image">Image</button><button data-v="video">Video</button>
+          </div>
+        </div>
+        <div class="row" style="align-items:center;justify-content:space-between" id="stillLenRow">
+          <span class="label">Video length</span>
+          <div class="seg" id="stillLenSeg" role="group" aria-label="Video length">
+            <button data-v="5">5s</button><button data-v="8">8s</button><button data-v="10">10s</button><button data-v="15">15s</button>
+          </div>
+        </div>
+        <span class="hint" id="stillHint"></span>
+      </div>
+      <div class="lock-body" id="vidControls">
       <label class="drop" id="drop" for="vidIn">Drop a video here, or click to choose one</label>
       <div class="file" id="vidFile" hidden>
         <span class="name" id="vidName"></span>
@@ -374,6 +409,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
         <div class="seg" id="aspectSeg" role="group" aria-label="Video frame">
           <button data-v="16:9">16:9</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button>
         </div>
+      </div>
       </div>
       <div class="field">
         <label class="label" for="margin">Side margin <span id="marginVal"></span></label>
@@ -651,6 +687,7 @@ const DEFAULTS = {
   byline: "Video: @source", blAlign: "center", muted: false,
   mainWho: "page", cName: "", cUser: "", cVerified: true,
   qOn: false, qWho: "custom", qName: "", qUser: "", qVerified: true, qText: "",
+  noVideo: false, stillAs: "image", stillLen: "8", impTo: "main",
   quality: "1440", safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "left", hWeight: "400", hlWords: "telepathically", hlColor: "#1d9bf0"
 };
 const S = { ...DEFAULTS };
@@ -830,6 +867,8 @@ function layout(ctx){
   const m = Math.round(W * S.margin / 100);
   const [a, b] = S.aspect.split(":").map(Number);
   const box = { x: m, w: W - 2*m }; box.h = Math.round(box.w * b / a);
+  if (S.noVideo) box.h = 0; // headline-only post: no video frame
+  const hg = S.noVideo ? 0 : 30;
   const tm = m + 28, maxW = W - 2*tm;
   // post-style headline: regular weight, snug line spacing, sitting close to the clip
   const fs = { S: 46, M: 54, L: 66 }[S.size], lh = Math.round(fs * 1.24), hw = S.hWeight || "400";
@@ -851,11 +890,11 @@ function layout(ctx){
     q = { x: box.x + 24, w: qw, pad, lh: lhq, lines, textH, img,
       h: pad + 58 + (textH ? 22 + textH : 0) + (img ? 24 + img.h : 0) + pad };
   }
-  const total = (S.lockOn ? LOCK + 34 : 0) + (hl.length ? hl.length*lh + 30 : 0) + box.h + (q ? 36 + q.h : 0) + (bl.length ? 30 + bl.length*blh : 0);
+  const total = (S.lockOn ? LOCK + 34 : 0) + (hl.length ? hl.length*lh + hg : 0) + box.h + (q ? 36 + q.h : 0) + (bl.length ? 30 + bl.length*blh : 0);
   let y = Math.max(40, Math.round((H - total) / 2));
   const L = { m, tm, maxW, fs, lh, hl, bl, blh, LOCK, box, q };
   if (S.lockOn) { L.lockY = y; y += LOCK + 34; }
-  if (hl.length) { L.hlY = y; y += hl.length*lh + 30; }
+  if (hl.length) { L.hlY = y; y += hl.length*lh + hg; }
   box.y = y; y += box.h;
   if (q) { q.y = y + 36; y = q.y + q.h; }
   if (bl.length) L.blY = y + 30;
@@ -974,7 +1013,7 @@ function draw(ctx, skipVideo){
       });
     });
   }
-  if (!skipVideo) drawVideoBox(ctx, L.box);
+  if (!skipVideo && !S.noVideo) drawVideoBox(ctx, L.box);
   lastBox = L.box;
   if (L.q) drawQuote(ctx, L.q);
   if (L.bl.length) {
@@ -992,7 +1031,7 @@ function tick(now){
   if (!hasVideo && clock.playing) { clock.t = (clock.t + (now - clock.last)/1000) % PH_DUR; }
   clock.last = now;
   if (hasVideo && !vid.seeking) {
-    if (exporting) {
+    if (exporting && !stillRun) {
       if (exportDone && vid.currentTime >= trim.end) { const f = exportDone; exportDone = null; vid.pause(); f(); }
     }
   }
@@ -1007,8 +1046,9 @@ function tick(now){
   const d = dur(), t = curT();
   $("#tNow").textContent = fmt(t); $("#tDur").textContent = fmt(d);
   if (document.activeElement !== $("#seek")) $("#seek").value = d ? Math.round(t/d*1000) : 0;
-  if (exporting && hasVideo && now - lastXpUi > 200) { lastXpUi = now;
-    const len = trim.end - trim.start || 1, done = Math.min(len, Math.max(0, vid.currentTime - trim.start)), p = done / len;
+  if (exporting && (hasVideo || stillRun) && now - lastXpUi > 200) { lastXpUi = now;
+    const len = stillRun ? stillRun.len : (trim.end - trim.start || 1);
+    const done = stillRun ? Math.min(len, (now - stillRun.t0) / 1000) : Math.min(len, Math.max(0, vid.currentTime - trim.start)), p = done / len;
     $("#barFill").style.width = (p * 100) + "%";
     $("#xpPct").textContent = Math.floor(p * 100) + "%";
     $("#xpTime").textContent = `${fmt(done)} of ${fmt(len)}`;
@@ -1024,6 +1064,8 @@ function seg(id, key){
   el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[key] = b.dataset.v; save(); refresh(); });
 }
 seg("#sizeSeg", "size"); seg("#aspectSeg", "aspect"); seg("#alignSeg", "align"); seg("#blAlignSeg", "blAlign"); seg("#bgSeg", "bg"); seg("#badgeSeg", "badgeColor"); seg("#qualitySeg", "quality"); seg("#hWeightSeg", "hWeight"); seg("#mainWhoSeg", "mainWho"); seg("#qWhoSeg", "qWho");
+seg("#stillAsSeg", "stillAs"); seg("#stillLenSeg", "stillLen"); seg("#impToSeg", "impTo");
+$("#noVid").addEventListener("change", e => { S.noVideo = e.target.checked; if (S.noVideo && hasVideo) vid.pause(); save(); refresh(); });
 $("#hAlignSeg").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   S.hAlign = b.dataset.v;
@@ -1074,10 +1116,19 @@ function refresh(){
     const g = $(id).getContext("2d"); g.clearRect(0, 0, 96, 96);
     g.save(); g.scale(96/104, 96/104); drawAvatar(g, 0, 0, 104, img, nm || "?"); g.restore();
   });
-  $("#exportBtn").disabled = !hasVideo || exporting;
-  $("#queueBtn").disabled = !hasVideo || exporting;
-  $("#cropBox").hidden = !hasVideo;
-  $("#trimBox").hidden = !hasVideo;
+  const canExport = hasVideo || !!S.noVideo;
+  $("#exportBtn").disabled = !canExport || exporting;
+  $("#queueBtn").disabled = !canExport || exporting;
+  $("#cropBox").hidden = !hasVideo || !!S.noVideo;
+  $("#trimBox").hidden = !hasVideo || !!S.noVideo;
+  const stillAs = S.stillAs || "image";
+  $("#noVid").checked = !!S.noVideo; $("#stillOpts").hidden = !S.noVideo; $("#vidControls").hidden = !!S.noVideo;
+  document.querySelectorAll("#stillAsSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === stillAs));
+  document.querySelectorAll("#stillLenSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === String(S.stillLen || "8")));
+  document.querySelectorAll("#impToSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.impTo || "main")));
+  $("#stillLenRow").hidden = stillAs !== "video";
+  $("#stillHint").textContent = stillAs === "image" ? "Exports a still PNG image at your export quality." : "Exports a silent video of the post, ready to post as a reel.";
+  $("#exportBtn").querySelector("span").textContent = S.noVideo && stillAs === "image" ? "Export image" : "Export reel";
   ["#trimA","#trimB","#trimReset"].forEach(s => $(s).disabled = exporting);
   updateTrimActs();
   ["#zoom","#cropReset"].forEach(s => $(s).disabled = exporting);
@@ -1140,7 +1191,7 @@ function setLocked(on){
   $("#recBadge").hidden = !on;
 }
 // keep recording even if something pauses the video mid-export
-vid.addEventListener("pause", () => { if (exporting && exportDone && !cancelled) vid.play().catch(() => {}); });
+vid.addEventListener("pause", () => { if (exporting && exportDone && !cancelled && !stillRun) vid.play().catch(() => {}); });
 $("#cancelBtn").onclick = () => {
   cancelled = true; $("#cancelBtn").disabled = true; $("#cancelBtn").textContent = "Cancelling…";
   if (exportDone) { const f = exportDone; exportDone = null; vid.pause(); f(); }
@@ -1160,7 +1211,59 @@ function setStageScale(k){
   sctx.setTransform(k, 0, 0, k, 0, 0);
   sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = "high";
 }
+// headline-only posts: a PNG image, or a silent video of a set length
+let stillRun = null;
+async function recordStill(label){
+  const q = QUALITY[S.quality] || QUALITY["1440"];
+  if ((S.stillAs || "image") === "image") {
+    const c = document.createElement("canvas"); c.width = Math.round(W * q.k); c.height = Math.round(H * q.k);
+    const x = c.getContext("2d"); x.setTransform(q.k, 0, 0, q.k, 0, 0); draw(x, true);
+    lastExportSize = `${c.width}×${c.height}`;
+    const blob = await new Promise(r => c.toBlob(r, "image/png"));
+    thumbTaken = true; $("#resThumb").getContext("2d").drawImage(c, 0, 0, 108, 192);
+    return { blob, ext: "png", withAudio: false };
+  }
+  const mime = pickMime(false);
+  if (!mime || !stage.captureStream) { status("This browser can't record video. Use a recent Chrome, Edge or Safari."); throw new Error("unsupported"); }
+  const len = Number(S.stillLen) || 8;
+  exporting = true; thumbTaken = false;
+  setLocked(true); refresh();
+  $(".xp-title").textContent = label;
+  $("#result").hidden = true; $("#xp").hidden = false; $("#barFill").style.width = "0"; $("#xpPct").textContent = "0%";
+  $("#cancelBtn").disabled = false; $("#cancelBtn").textContent = batchRunning ? "Cancel all" : "Cancel export";
+  status("Keep this tab open and in front until it finishes.");
+  exportWasHidden = false;
+  if (hasVideo) vid.pause();
+  setStageScale(q.k);
+  lastExportSize = `${stage.width}×${stage.height}`;
+  const layer = document.createElement("canvas"); layer.width = stage.width; layer.height = stage.height;
+  const lctx = layer.getContext("2d"); lctx.setTransform(q.k, 0, 0, q.k, 0, 0); draw(lctx, true);
+  const paint = () => sctx.drawImage(layer, 0, 0, W, H); // repainted every frame so the recorder keeps receiving frames
+  paint();
+  const stream = stage.captureStream(30);
+  staticPaint = paint;
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: q.bps });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const stopped = once(rec, "stop");
+  rec.start(1000);
+  stillRun = { t0: performance.now(), len };
+  let wake = null; try { wake = await navigator.wakeLock?.request("screen"); } catch(e) {}
+  await new Promise(res => { exportDone = res; setTimeout(() => { if (exportDone) { const f = exportDone; exportDone = null; f(); } }, len * 1000); });
+  exportDone = null;
+  rec.stop(); await stopped;
+  stream.getVideoTracks().forEach(t => t.stop());
+  try { wake && wake.release(); } catch(e) {}
+  staticPaint = null; stillRun = null;
+  setStageScale(1);
+  exporting = false; $("#xp").hidden = true;
+  if (!batchRunning) setLocked(false);
+  if (cancelled) { status("Export cancelled. Nothing was saved."); refresh(); updatePlayBtn(); return null; }
+  refresh(); updatePlayBtn();
+  const type = mime.split(";")[0], ext = type === "video/mp4" ? "mp4" : "webm";
+  return { blob: new Blob(chunks, { type }), ext, withAudio: false, len };
+}
 async function recordReel(label){
+  if (S.noVideo) return recordStill(label);
   ensureAudio();
   const withAudio = !S.muted && !!audioDest;
   const mime = pickMime(withAudio);
@@ -1219,14 +1322,18 @@ async function recordReel(label){
 }
 
 $("#exportBtn").onclick = async () => {
-  if (!hasVideo || exporting) return;
+  if (!(hasVideo || S.noVideo) || exporting) return;
   cancelled = false;
   let out;
   try { out = await recordReel("Exporting reel"); } catch(e) { return; }
   if (!out) return;
   lastExport = { blob: out.blob, name: `${slug(S.headline)}.${out.ext}` };
   if (!thumbTaken) $("#resThumb").getContext("2d").drawImage(stage, 0, 0, 108, 192);
-  $("#resultText").innerHTML = [fmt(trim.end - trim.start), out.ext.toUpperCase(), lastExportSize, (out.blob.size/1048576).toFixed(1) + " MB", out.withAudio ? "With sound" : "No sound"]
+  document.querySelector(".res-title").lastChild.textContent = out.ext === "png" ? "Image ready" : "Reel ready";
+  const chips = out.ext === "png"
+    ? ["PNG image", lastExportSize, (out.blob.size/1048576).toFixed(1) + " MB"]
+    : [fmt(out.len || (trim.end - trim.start)), out.ext.toUpperCase(), lastExportSize, (out.blob.size/1048576).toFixed(1) + " MB", out.withAudio ? "With sound" : "No sound"];
+  $("#resultText").innerHTML = chips
     .map(c => `<span class="chip">${c}</span>`).join("");
   $("#result").hidden = false;
   status(out.ext === "webm" ? "This browser can only record WebM. Instagram and TikTok want MP4, so export from Chrome or Safari for MP4." : "Done. Press Save to download it.");
@@ -1416,7 +1523,7 @@ function renderQueue(){
       <img src="${q.thumb}" alt="">
       <div class="pmain">
         <div class="qhl">${esc(q.settings.headline.trim() || "Untitled reel")}</div>
-        <div class="chips">${q.profileTitle ? `<span class="chip">${esc(q.profileTitle)}</span>` : ""}<span class="chip">${fmt(q.trim.end - q.trim.start)}</span><span class="chip">${esc(q.settings.aspect)}</span>${statusChip(q)}</div>
+        <div class="chips">${q.profileTitle ? `<span class="chip">${esc(q.profileTitle)}</span>` : ""}<span class="chip">${q.settings.noVideo ? ((q.settings.stillAs || "image") === "image" ? "Image" : `${q.settings.stillLen || 8}s, no video`) : fmt(q.trim.end - q.trim.start)}</span><span class="chip">${esc(q.settings.aspect)}</span>${statusChip(q)}</div>
       </div>
       <div class="pacts">
         ${q.status === "done" ? `<button class="btn small rec" data-act="save">Save</button>` : `<button class="btn small" data-act="edit">Edit</button>`}
@@ -1430,10 +1537,10 @@ function renderQueue(){
   $("#qClear").hidden = !done;
 }
 function addToQueue(){
-  if (!hasVideo || !curFile || exporting) return;
+  if (exporting || !(S.noVideo || (hasVideo && curFile))) return;
   const t = document.createElement("canvas"); t.width = 108; t.height = 192; t.getContext("2d").drawImage(stage, 0, 0, 108, 192);
   queue.push({
-    id: ++qid, settings: { ...S }, file: curFile, trim: { ...trim }, crop: { ...crop }, avatarSrc: avatarData(),
+    id: ++qid, settings: { ...S }, file: S.noVideo ? null : curFile, trim: { ...trim }, crop: { ...crop }, avatarSrc: avatarData(),
     cAvatarSrc: avatarData(cAvatar), qAvatarSrc: avatarData(qAvatar), qImageSrc: imageData(qImage),
     thumb: t.toDataURL("image/jpeg", .8), status: "waiting", out: null,
     profileTitle: (profiles.find(p => p.id === S.profileId) || {}).title || ""
@@ -1447,9 +1554,11 @@ async function applySnapshot(q){
   Object.assign(S, q.settings); save(); syncInputs();
   avatar = await loadImg(q.avatarSrc);
   cAvatar = await loadImg(q.cAvatarSrc); qAvatar = await loadImg(q.qAvatarSrc); qImage = await loadImg(q.qImageSrc);
-  await setVideo(q.file);
-  trim.start = q.trim.start; trim.end = q.trim.end; syncTrim();
-  crop.px = q.crop.px; crop.py = q.crop.py; setZoom(q.crop.zoom);
+  if (q.file) {
+    await setVideo(q.file);
+    trim.start = q.trim.start; trim.end = q.trim.end; syncTrim();
+    crop.px = q.crop.px; crop.py = q.crop.py; setZoom(q.crop.zoom);
+  } else if (hasVideo) clearVideo();
   refresh(); renderProfiles();
 }
 $("#qList").addEventListener("click", async e => {
@@ -1805,9 +1914,70 @@ async function initAI(){
   try { sample = window.claude?.use ? await window.claude.use("sample") : null; } catch(e) { sample = null; }
   if (!sample) sample = await serverAI();
   $("#aiGo").disabled = !sample; $("#aiMore").disabled = !sample; $("#rwGo").disabled = !sample;
+  try { aiImages = !!(sample && sample.limits && (await sample.limits()).images); } catch(e) { aiImages = false; }
+  $("#impShotBtn").hidden = !aiImages;
   if (!sample) $("#rwState").textContent = "Rewrite is off. Add an API key to the server to switch it on (see README).";
   if (!sample) $("#aiState").textContent = "AI ideas are off. Add an API key to the server to switch them on (see README).";
 }
+
+// ---------- import a post ----------
+// Reads a post copied from X (or similar): finds the @handle, takes the line before it as the name,
+// and keeps the post text while skipping timestamps, buttons and the stats row.
+let aiImages = false;
+function parsePost(raw){
+  const lines = raw.replace(/\r/g, "").split("\n").map(s => s.trim()).filter(Boolean);
+  let name = "", user = "", start = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const own = lines[i].match(/^(@[A-Za-z0-9_]{1,15})\b/);
+    if (own) { user = own[1]; name = i > 0 ? lines[i - 1] : ""; start = i + 1; break; }
+    const inline = lines[i].match(/^(.+?)\s+(@[A-Za-z0-9_]{1,15})\b/);
+    if (inline) { name = inline[1]; user = inline[2]; start = i + 1; break; }
+  }
+  const skip = /^(·|follow|following|subscribe|show more|translate post|replying to\b.*|\d+[smhd]|\d{1,2}:\d{2}\s?(am|pm)\b.*|[A-Z][a-z]{2} \d{1,2}(, \d{4})?|ad|promoted)$/i;
+  const stats = /^[\d.,]+[KM]?(\s+(views?|reposts?|likes?|quotes?|bookmarks?|replies))?$|^(views?|reposts?|likes?|quotes?|bookmarks?)$/i;
+  const body = [];
+  for (const l of lines.slice(start)) {
+    const t = l.replace(/^·\s*/, "");
+    if (!t) continue; // a lone "·" separator
+    if (stats.test(t)) { if (body.length) break; continue; }
+    if (skip.test(t)) continue;
+    body.push(l);
+  }
+  name = name.replace(/\s*·.*$/, "").replace(/\s*verified account$/i, "").trim();
+  return { name, user, text: body.join("\n").trim(), verified: /verified/i.test(raw) };
+}
+function applyImport(p){
+  const user = p.user && !p.user.startsWith("@") ? "@" + p.user : p.user;
+  if ((S.impTo || "main") === "quote") {
+    S.qOn = true; S.qWho = "custom"; S.qVerified = !!p.verified;
+    if (p.name) S.qName = p.name; if (user) S.qUser = user; if (p.text) S.qText = p.text;
+  } else {
+    S.lockOn = true; S.mainWho = "custom"; S.cVerified = !!p.verified;
+    if (p.name) S.cName = p.name; if (user) S.cUser = user; if (p.text) S.headline = p.text;
+  }
+  save(); syncInputs(); refresh();
+  $("#impState").textContent = `Filled in ${(S.impTo || "main") === "quote" ? "the quoted post" : "the main post"}${p.name ? " from " + p.name : ""}. Add their profile photo, then check the text.`;
+}
+$("#impPaste").onclick = () => {
+  const raw = $("#impText").value;
+  if (!raw.trim()) { $("#impState").textContent = "Paste a post's text first."; $("#impText").focus(); return; }
+  const p = parsePost(raw);
+  if (!p.user) { p.text = raw.trim(); }
+  applyImport(p);
+  if (!p.user) $("#impState").textContent = "No @handle found, so only the text was filled in. Add the name and handle yourself.";
+};
+$("#impShot").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  if (!sample || !aiImages) { $("#impState").textContent = "Reading screenshots isn't available here. Paste the post's text instead."; return; }
+  $("#impShotBtn").classList.add("locked"); $("#impState").textContent = "Reading the screenshot…";
+  try {
+    const r = await sample.json("Read the social media post in this screenshot. Reply with ONLY a JSON object: {\"name\": \"the display name\", \"handle\": \"the @handle\", \"verified\": true if a verification checkmark is next to the name, otherwise false, \"text\": \"the post's text exactly as written, keeping line breaks\"}. Use empty strings for anything you can't read. If a quoted post is shown inside it, read only the outer post.", { images: [f], modelTier: "quick", cache: false });
+    if (!r || (!r.text && !r.handle)) throw { code: "invalid_json" };
+    applyImport({ name: String(r.name || "").trim(), user: String(r.handle || "").trim(), text: String(r.text || "").trim(), verified: r.verified === true });
+  } catch(err) {
+    $("#impState").textContent = err && err.code === "rate_limited" ? "You've hit the usage limit for now. Paste the text instead." : "Couldn't read that screenshot. Try a clearer one, or paste the text.";
+  } finally { $("#impShotBtn").classList.remove("locked"); }
+});
 
 // ---------- boot ----------
 applyMute(); refresh(); updatePlayBtn(); renderProfiles(); renderQueue(); renderAi(); renderTones(); renderRw();

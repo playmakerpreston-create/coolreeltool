@@ -2116,9 +2116,25 @@ $("#importBtn").onclick = () => {
   if (!parseLink(S.link || "")) { status("That doesn't look like a post link. It should look like x.com/name/status/123…"); $("#link").focus(); return; }
   lastImported = ""; importPost();
 };
+// Paste button: read the clipboard directly; inside the combined site, fall back to the main page's clipboard access.
+async function readClipboardText(){
+  try { return await navigator.clipboard.readText(); }
+  catch(e) { if (window.parent !== window) return await window.parent.navigator.clipboard.readText(); throw e; }
+}
 $("#pasteLink").onclick = async () => {
-  try { const t = await navigator.clipboard.readText(); $("#link").value = t; $("#link").dispatchEvent(new Event("input")); }
-  catch(e) { $("#link").focus(); status("Press and hold in the link box, then tap Paste."); }
+  let t = "";
+  try { t = String(await readClipboardText() || "").trim(); } catch(e) {}
+  const box = $("#link");
+  if (t) {
+    box.value = t; box.dispatchEvent(new Event("input"));
+    if (!parseLink(t)) status("What you copied isn't a post link. On X, tap Share, then Copy link, and try again.");
+    return;
+  }
+  // the browser blocked or refused clipboard access: get the box ready for a normal paste
+  box.value = ""; box.focus(); box.select();
+  status(/iPhone|iPad|Android/i.test(navigator.userAgent)
+    ? "Your browser blocked the Paste button. Press and hold in the link box above, then tap Paste."
+    : "Your browser blocked the Paste button. The link box is selected: press Ctrl+V (⌘V on Mac) to paste.");
 };
 $("#addCredit").onclick = () => {
   const p = parseLink(S.link || ""); if (!p) return;

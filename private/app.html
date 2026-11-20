@@ -281,6 +281,39 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
 #xpPct{font-family:var(--f-ui);font-weight:600}
 .res-title{font-size:16px}
 
+/* Pres Post-style editor: page row, link import, add-on chips, sub-panels, collapsible sections */
+.profrow{display:flex;align-items:center;gap:8px}
+.profrow select{flex:1;min-width:0}
+.row.between{justify-content:space-between;align-items:center}
+.linkrow{display:flex;gap:8px}
+.linkrow input{flex:1;min-width:0}
+input[type=url]{width:100%;background:var(--well);border:0;border-radius:10px;padding:10px 12px;font-size:15px;line-height:1.35;transition:box-shadow .15s}
+input[type=url]:focus{outline:none;box-shadow:0 0 0 3.5px color-mix(in srgb,var(--focus) 35%,transparent)}
+.detect{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:color-mix(in srgb,var(--focus) 8%,transparent);border-radius:10px;padding:8px 10px;font-size:13px}
+.detect b{font-weight:600}
+.detect .grow{flex:1;min-width:0}
+.detect a.btn{text-decoration:none}
+.addons{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px}
+.addon{position:relative;display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:var(--well);color:var(--ink);font-weight:600;font-size:13px;cursor:pointer;user-select:none;transition:background .15s,color .15s}
+.addon input{position:absolute;opacity:0;width:1px;height:1px}
+.addon::before{content:"+";font-weight:700;color:var(--focus)}
+.addon:has(input:checked){background:var(--focus);color:#fff}
+.addon:has(input:checked)::before{content:"\2713";color:#fff}
+.addon:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.sub{background:var(--well);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px}
+.sub input[type=text],.sub textarea{background:var(--panel)}
+details.more{background:var(--panel);border-radius:14px}
+details.more > summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:10px;border-radius:14px}
+details.more > summary::-webkit-details-marker,details.inline-more > summary::-webkit-details-marker{display:none}
+details.more > summary h2{font-size:17px;font-weight:600;letter-spacing:-.015em}
+details.more > summary .sum{flex:1;min-width:0;text-align:right;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+details.more > summary::after{content:"";flex:none;width:7px;height:7px;margin:0 3px 3px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.more[open] > summary::after{transform:rotate(-135deg);margin:3px 3px 0 0}
+details.more > summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.more-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:14px}
+details.inline-more > summary{list-style:none;cursor:pointer;color:var(--focus);font-size:13px;font-weight:500}
+details.inline-more .more-body{display:flex;flex-direction:column;gap:12px}
+
 /* gentle panel transitions */
 @keyframes paneIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .tabpanel:not([hidden]){animation:paneIn .22s ease}
@@ -304,19 +337,124 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
     </div>
 
     <div class="tabpanel" id="tab-editor">
-    <!-- Page profile -->
-    <section class="sec">
-      <div class="sec-h"><h2>Page profile</h2><button class="btn small" id="profNew">New profile</button></div>
-      <select id="profSel" aria-label="Page profile"></select>
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <span class="hint" style="flex:1 1 180px">Switch pages in one tap. Edits don't change the profile until you save them.</span>
-        <button class="btn small" id="profUpdate">Save changes to profile</button>
-      </div>
-    </section>
+      <section class="sec">
+        <div class="profrow">
+          <label class="label" for="profSel">Page</label>
+          <select id="profSel"></select>
+          <button class="btn small" id="profUpdate" title="Save your edits to this page profile">Save</button>
+          <button class="btn small" id="profNew" title="Save this look as a new page profile">New</button>
+        </div>
+      </section>
 
-    <!-- Import a post -->
-    <section class="sec">
-      <div class="sec-h"><h2>Import a post</h2><span class="opt">Optional</span></div>
+      <section class="sec">
+        <div class="sec-h"><h2>Post</h2><button class="btn small" id="clearPost">New post</button></div>
+        <div class="linkrow">
+          <input type="url" id="link" placeholder="Paste a post link" aria-label="Post link" autocomplete="off">
+          <button class="btn" id="pasteLink">Paste</button>
+          <button class="btn rec" id="importBtn">Make it</button>
+        </div>
+        <div class="detect" id="detect" hidden>
+          <span class="grow">Post by <b id="detHandle"></b></span>
+          <a class="btn small" id="openPost" href="#" target="_blank" rel="noopener">Open post</a>
+          <button class="btn small" id="addCredit">Credit them</button>
+        </div>
+        <div class="field">
+          <div class="sec-h"><label class="label" for="headline">Headline</label>
+            <div class="seg" id="sizeSeg" role="group" aria-label="Headline size"><button data-v="S">S</button><button data-v="M">M</button><button data-v="L">L</button></div>
+          </div>
+          <textarea id="headline" rows="3" aria-label="Headline" placeholder="The post's text"></textarea>
+        </div>
+        <div class="field">
+          <div class="sec-h"><span class="label">Video</span><span class="mono" id="vidLen">No video</span></div>
+      <div class="lock-body" id="vidControls">
+          <label class="drop" id="drop" for="vidIn">Drop a video here, or click to choose one</label>
+          <div class="file" id="vidFile" hidden>
+            <span class="name" id="vidName"></span>
+            <label class="btn" for="vidIn">Replace</label>
+            <button class="btn" id="vidRemove">Remove</button>
+          </div>
+          <input type="file" id="vidIn" accept="video/*" hidden>
+          <div class="field" id="cropBox" hidden>
+            <div class="sec-h">
+              <label class="label" for="zoom">Crop · zoom <span id="zoomVal">100%</span></label>
+              <button class="btn" id="cropReset" style="padding:4px 10px;font-size:12px">Reset</button>
+            </div>
+            <input type="range" id="zoom" min="100" max="300" step="1" value="100">
+            <span class="hint">Drag the video in the preview to move it. Scroll over it to zoom.</span>
+          </div>
+          <div class="field">
+            <span class="label">Frame</span>
+            <div class="seg" id="aspectSeg" role="group" aria-label="Video frame">
+              <button data-v="16:9">16:9</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button>
+            </div>
+          </div>
+          </div>
+          <label class="switch"><input type="checkbox" id="noVid"><i></i>No video (headline only)</label>
+      <div class="field" id="stillOpts" hidden>
+            <div class="row" style="align-items:center;justify-content:space-between">
+              <span class="label">Export as</span>
+              <div class="seg" id="stillAsSeg" role="group" aria-label="Export a headline-only post as">
+                <button data-v="image">Image</button><button data-v="video">Video</button>
+              </div>
+            </div>
+            <div class="row" style="align-items:center;justify-content:space-between" id="stillLenRow">
+              <span class="label">Video length</span>
+              <div class="seg" id="stillLenSeg" role="group" aria-label="Video length">
+                <button data-v="5">5s</button><button data-v="8">8s</button><button data-v="10">10s</button><button data-v="15">15s</button>
+              </div>
+            </div>
+            <span class="hint" id="stillHint"></span>
+          </div>
+        </div>
+
+        <div class="addons" role="group" aria-label="Add to this post">
+          <label class="addon"><input type="checkbox" id="qOn">Quote post</label>
+          <label class="addon"><input type="checkbox" id="creditOn">Credit</label>
+        </div>
+
+        <div class="sub" id="qBody" hidden>
+          <span class="label">Quote post</span>
+        <textarea id="qText" rows="3" aria-label="Quoted post text" placeholder="The post you're quoting. It shows in a card under the video."></textarea>
+        <div class="row" style="align-items:center">
+          <label class="btn" for="qImgIn" id="qImgBtn">Add image</label>
+          <button class="btn" id="qImgRemove" hidden>Remove image</button>
+          <input type="file" id="qImgIn" accept="image/*" hidden>
+          <span class="hint" style="flex:1 1 140px">Optional. Shows under the quote's text.</span>
+        </div>
+        <div class="field">
+          <span class="label">Name on quote</span>
+          <div class="seg" id="qWhoSeg" role="group" aria-label="Name on the quoted post">
+            <button data-v="custom">Custom</button><button data-v="page">My page</button>
+          </div>
+        </div>
+        <div class="lock-body" id="qCustom">
+          <div class="avatar-pick">
+            <canvas id="qAvPrev" width="96" height="96"></canvas>
+            <label class="btn" for="qAvIn">Change photo</label>
+            <button class="btn" id="qAvRemove" hidden>Remove</button>
+            <input type="file" id="qAvIn" accept="image/*" hidden>
+          </div>
+          <div class="row">
+            <div class="field"><label class="label" for="qName">Name</label><input type="text" id="qName" placeholder="Poster's name"></div>
+            <div class="field"><label class="label" for="qUser">Username</label><input type="text" id="qUser" placeholder="@handle"></div>
+          </div>
+          <label class="switch"><input type="checkbox" id="qVerified"><i></i>Verified badge</label>
+        </div>
+        <span class="hint">Only put a real account's name on words they actually posted.</span>
+        </div>
+
+        <div class="sub" id="creditBody" hidden>
+          <label class="label" for="byline">Credit line</label>
+          <input type="text" id="byline" placeholder="via @source">
+          <div class="row between">
+            <span class="hint">A small grey line under the post.</span>
+            <div class="seg" id="blAlignSeg" role="group" aria-label="Credit alignment"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div>
+          </div>
+        </div>
+
+        <details class="inline-more">
+          <summary>No link? Paste the post's text or a screenshot</summary>
+          <div class="more-body" style="padding:12px 0 0">
       <div class="row" style="align-items:center;justify-content:space-between">
         <span class="label">Fill in</span>
         <div class="seg" id="impToSeg" role="group" aria-label="Which post to fill in">
@@ -330,35 +468,19 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
         <input type="file" id="impShot" accept="image/*" hidden>
       </div>
       <span class="hint" id="impState">Paste a copied post, or upload a screenshot of one. Add the profile photo yourself.</span>
-    </section>
+          </div>
+        </details>
+      </section>
 
-    <!-- Background -->
-    <section class="sec">
-      <div class="sec-h"><h2>Background</h2>
-        <div class="seg" id="bgSeg" role="group" aria-label="Background">
-          <button data-v="black">Black</button><button data-v="white">White</button>
-        </div>
-      </div>
-      <span class="hint">On white, all text switches to black.</span>
-    </section>
-
-    <!-- Headline -->
-    <section class="sec">
-      <div class="sec-h"><h2>Headline</h2>
-        <div class="seg" id="sizeSeg" role="group" aria-label="Headline size">
-          <button data-v="S">S</button><button data-v="M">M</button><button data-v="L">L</button>
-        </div>
-      </div>
-      <textarea id="headline" rows="3" aria-label="Headline"></textarea>
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <div class="seg" id="hWeightSeg" role="group" aria-label="Headline weight">
-          <button data-v="400">Regular</button><button data-v="700">Bold</button>
-        </div>
-        <div class="seg" id="hAlignSeg" role="group" aria-label="Headline alignment">
-          <button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button>
-        </div>
-      </div>
-      <span class="hint">Press Enter to force a line break.</span>
+      <details class="more">
+        <summary><h2>Look</h2><span class="sum" id="lookSum"></span></summary>
+        <div class="more-body">
+          <div class="row between"><span class="label">Background</span>
+            <div class="seg" id="bgSeg" role="group" aria-label="Background"><button data-v="black">Black</button><button data-v="white">White</button></div></div>
+          <div class="row between"><span class="label">Text weight</span>
+            <div class="seg" id="hWeightSeg" role="group" aria-label="Headline weight"><button data-v="400">Regular</button><button data-v="700">Bold</button></div></div>
+          <div class="row between"><span class="label">Text align</span>
+            <div class="seg" id="hAlignSeg" role="group" aria-label="Headline alignment"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div></div>
       <div class="field">
         <label class="label" for="hlWords">Highlight words</label>
         <div class="swatch">
@@ -366,50 +488,6 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
           <input type="color" id="hlColor" aria-label="Highlight color">
         </div>
         <span class="hint">Separate words or phrases with commas. Matching ignores case and punctuation.</span>
-      </div>
-    </section>
-
-    <!-- Video -->
-    <section class="sec">
-      <div class="sec-h"><h2>Video</h2><span class="mono" id="vidLen">No video</span></div>
-      <label class="switch"><input type="checkbox" id="noVid"><i></i>No video (headline only)</label>
-      <div class="field" id="stillOpts" hidden>
-        <div class="row" style="align-items:center;justify-content:space-between">
-          <span class="label">Export as</span>
-          <div class="seg" id="stillAsSeg" role="group" aria-label="Export a headline-only post as">
-            <button data-v="image">Image</button><button data-v="video">Video</button>
-          </div>
-        </div>
-        <div class="row" style="align-items:center;justify-content:space-between" id="stillLenRow">
-          <span class="label">Video length</span>
-          <div class="seg" id="stillLenSeg" role="group" aria-label="Video length">
-            <button data-v="5">5s</button><button data-v="8">8s</button><button data-v="10">10s</button><button data-v="15">15s</button>
-          </div>
-        </div>
-        <span class="hint" id="stillHint"></span>
-      </div>
-      <div class="lock-body" id="vidControls">
-      <label class="drop" id="drop" for="vidIn">Drop a video here, or click to choose one</label>
-      <div class="file" id="vidFile" hidden>
-        <span class="name" id="vidName"></span>
-        <label class="btn" for="vidIn">Replace</label>
-        <button class="btn" id="vidRemove">Remove</button>
-      </div>
-      <input type="file" id="vidIn" accept="video/*" hidden>
-      <div class="field" id="cropBox" hidden>
-        <div class="sec-h">
-          <label class="label" for="zoom">Crop · zoom <span id="zoomVal">100%</span></label>
-          <button class="btn" id="cropReset" style="padding:4px 10px;font-size:12px">Reset</button>
-        </div>
-        <input type="range" id="zoom" min="100" max="300" step="1" value="100">
-        <span class="hint">Drag the video in the preview to move it. Scroll over it to zoom.</span>
-      </div>
-      <div class="field">
-        <span class="label">Frame</span>
-        <div class="seg" id="aspectSeg" role="group" aria-label="Video frame">
-          <button data-v="16:9">16:9</button><button data-v="4:5">4:5</button><button data-v="1:1">1:1</button>
-        </div>
-      </div>
       </div>
       <div class="field">
         <label class="label" for="margin">Side margin <span id="marginVal"></span></label>
@@ -419,14 +497,14 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
           <label class="switch"><input type="checkbox" id="safe"><i></i>Show app safe zones</label>
         </div>
       </div>
-    </section>
+        </div>
+      </details>
 
-    <!-- Profile lockup -->
-    <section class="sec">
-      <div class="sec-h"><h2>Profile lockup</h2>
-        <label class="switch"><input type="checkbox" id="lockOn"><i></i><span class="opt">Optional</span></label>
-      </div>
-      <div class="lock-body" id="lockBody">
+      <details class="more">
+        <summary><h2>Branding</h2><span class="sum" id="brandSum"></span></summary>
+        <div class="more-body">
+          <label class="switch"><input type="checkbox" id="lockOn"><i></i>Show a name on posts</label>
+          <div class="lock-body" id="lockBody">
         <div class="field">
           <span class="label">Name on post</span>
           <div class="seg" id="mainWhoSeg" role="group" aria-label="Name on the main post">
@@ -474,56 +552,9 @@ select{appearance:none;-webkit-appearance:none;padding-right:34px;background-ima
             <button data-v="#ffffff" style="background:#ffffff" aria-label="White" title="White"></button>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- Quoted post -->
-    <section class="sec">
-      <div class="sec-h"><h2>Quoted post</h2>
-        <label class="switch"><input type="checkbox" id="qOn"><i></i><span class="opt">Optional</span></label>
-      </div>
-      <div class="lock-body" id="qBody">
-        <textarea id="qText" rows="3" aria-label="Quoted post text" placeholder="The post you're quoting. It shows in a card under the video."></textarea>
-        <div class="row" style="align-items:center">
-          <label class="btn" for="qImgIn" id="qImgBtn">Add image</label>
-          <button class="btn" id="qImgRemove" hidden>Remove image</button>
-          <input type="file" id="qImgIn" accept="image/*" hidden>
-          <span class="hint" style="flex:1 1 140px">Optional. Shows under the quote's text.</span>
-        </div>
-        <div class="field">
-          <span class="label">Name on quote</span>
-          <div class="seg" id="qWhoSeg" role="group" aria-label="Name on the quoted post">
-            <button data-v="custom">Custom</button><button data-v="page">My page</button>
           </div>
         </div>
-        <div class="lock-body" id="qCustom">
-          <div class="avatar-pick">
-            <canvas id="qAvPrev" width="96" height="96"></canvas>
-            <label class="btn" for="qAvIn">Change photo</label>
-            <button class="btn" id="qAvRemove" hidden>Remove</button>
-            <input type="file" id="qAvIn" accept="image/*" hidden>
-          </div>
-          <div class="row">
-            <div class="field"><label class="label" for="qName">Name</label><input type="text" id="qName" placeholder="Poster's name"></div>
-            <div class="field"><label class="label" for="qUser">Username</label><input type="text" id="qUser" placeholder="@handle"></div>
-          </div>
-          <label class="switch"><input type="checkbox" id="qVerified"><i></i>Verified badge</label>
-        </div>
-        <span class="hint">Only put a real account's name on words they actually posted.</span>
-      </div>
-    </section>
-
-    <!-- Byline -->
-    <section class="sec">
-      <div class="sec-h"><h2>Byline</h2><span class="opt">Optional</span></div>
-      <input type="text" id="byline" aria-label="Byline" placeholder="e.g. Video: @source">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <span class="hint">Small grey line under the video. Leave empty to hide it.</span>
-        <div class="seg" id="blAlignSeg" role="group" aria-label="Byline alignment">
-          <button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button>
-        </div>
-      </div>
-    </section>
+      </details>
     </div>
 
     <div class="tabpanel" id="tab-profiles" hidden>
@@ -687,7 +718,7 @@ const DEFAULTS = {
   byline: "Video: @source", blAlign: "center", muted: false,
   mainWho: "page", cName: "", cUser: "", cVerified: true,
   qOn: false, qWho: "custom", qName: "", qUser: "", qVerified: true, qText: "",
-  noVideo: false, stillAs: "image", stillLen: "8", impTo: "main",
+  noVideo: false, stillAs: "image", stillLen: "8", impTo: "main", link: "", creditOn: true,
   quality: "1440", safe: false, badgeColor: "#1d9bf0", bg: "black", hAlign: "left", hWeight: "400", hlWords: "telepathically", hlColor: "#1d9bf0"
 };
 const S = { ...DEFAULTS };
@@ -875,7 +906,7 @@ function layout(ctx){
   ctx.font = `${hw} ${fs}px ${SANS}`;
   const hl = S.headline.trim() ? wrap(ctx, S.headline, maxW) : [];
   ctx.font = `400 30px ${SANS}`;
-  const bl = S.byline.trim() ? wrap(ctx, S.byline, maxW) : [];
+  const bl = (S.creditOn !== false && S.byline.trim()) ? wrap(ctx, S.byline, maxW) : [];
   const LOCK = 104, blh = 40;
   // quoted post card under the video
   let q = null;
@@ -1076,7 +1107,7 @@ $("#hAlignSeg").addEventListener("click", e => {
   const el = $(id); el.value = S[key];
   el.addEventListener("input", () => { S[key] = el.value; save(); refresh(); });
 });
-[["#lockOn","lockOn"],["#pVerified","verified"],["#guides","guides"],["#safe","safe"],["#cVerified","cVerified"],["#qOn","qOn"],["#qVerified","qVerified"]].forEach(([id, key]) => {
+[["#lockOn","lockOn"],["#pVerified","verified"],["#guides","guides"],["#safe","safe"],["#cVerified","cVerified"],["#qOn","qOn"],["#qVerified","qVerified"],["#creditOn","creditOn"]].forEach(([id, key]) => {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; save(); refresh(); });
 });
 $("#margin").value = S.margin;
@@ -1091,7 +1122,10 @@ function refresh(){
   document.querySelectorAll("#hWeightSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.hWeight || "400")));
   document.querySelectorAll("#blAlignSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.blAlign || "center")));
   $("#lockOn").checked = S.lockOn; $("#pVerified").checked = S.verified; $("#guides").checked = S.guides;
-  $("#lockBody").style.opacity = S.lockOn ? 1 : .45;
+  $("#lockBody").classList.toggle("locked", !S.lockOn);
+  $("#creditOn").checked = S.creditOn !== false; $("#creditBody").hidden = S.creditOn === false;
+  $("#lookSum").textContent = `${S.bg === "white" ? "White" : "Black"} \u00b7 ${S.hWeight === "700" ? "Bold" : "Regular"} \u00b7 ${({ left: "Left", center: "Centered", right: "Right" })[S.hAlign] || "Left"}`;
+  $("#brandSum").textContent = !S.lockOn ? "Off" : (S.mainWho === "custom" ? (S.cUser || S.cName || "Custom name") : (S.user || S.name || "Your page"));
   $("#marginVal").textContent = `· ${S.margin}%`;
   $("#guideBox").classList.toggle("show", S.guides && !exporting); // preview-only overlay, never recorded
   document.querySelectorAll("#badgeSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.badgeColor || "#1d9bf0")));
@@ -1108,7 +1142,7 @@ function refresh(){
   document.querySelectorAll("#qWhoSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === (S.qWho || "custom")));
   $("#mainCustom").hidden = (S.mainWho || "page") !== "custom";
   $("#qCustom").hidden = (S.qWho || "custom") !== "custom";
-  $("#qOn").checked = !!S.qOn; $("#qBody").style.opacity = S.qOn ? 1 : .45;
+  $("#qOn").checked = !!S.qOn; $("#qBody").hidden = !S.qOn;
   $("#cVerified").checked = S.cVerified !== false; $("#qVerified").checked = S.qVerified !== false;
   $("#cAvRemove").hidden = !cAvatar; $("#qAvRemove").hidden = !qAvatar;
   $("#qImgRemove").hidden = !qImage; $("#qImgBtn").textContent = qImage ? "Change image" : "Add image";
@@ -1372,6 +1406,7 @@ $(".tabs").addEventListener("click", e => { const b = e.target.closest("button[d
 
 // put every text field back in line with S (after applying a profile or a queued reel)
 function syncInputs(){
+  $("#link").value = S.link || ""; syncDetect();
   [["#headline","headline"],["#pName","name"],["#pUser","user"],["#byline","byline"],["#hlWords","hlWords"],["#hlColor","hlColor"],["#cName","cName"],["#cUser","cUser"],["#qName","qName"],["#qUser","qUser"],["#qText","qText"]].forEach(([id, k]) => { $(id).value = S[k] ?? ""; });
   $("#margin").value = S.margin; applyMute();
 }
@@ -1974,8 +2009,135 @@ $("#impShot").addEventListener("change", async e => {
   } finally { $("#impShotBtn").classList.remove("locked"); }
 });
 
+// ---------- import from a post link ----------
+// FixTweet and vxTwitter are free public services that return a post's text, author, media and quote.
+function parseLink(v){
+  const m = String(v).match(/(?:twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com)\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d+)/i);
+  return m ? { handle: m[1], id: m[2] } : null;
+}
+function syncDetect(){
+  const p = parseLink(S.link || ""), d = $("#detect");
+  d.hidden = !p;
+  if (p) {
+    $("#detHandle").textContent = "@" + p.handle;
+    $("#openPost").href = `https://x.com/${p.handle}/status/${p.id}`;
+    $("#addCredit").hidden = S.creditOn !== false && (S.byline || "").trim().toLowerCase() === ("via @" + p.handle).toLowerCase();
+  }
+}
+async function getJSON(url){
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000);
+  try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+function fxParse(t){
+  const m = t.media || {}, a = t.author || {};
+  const all = m.all || [...(m.photos || []), ...(m.videos || [])];
+  const vid = all.find(x => x.type === "video" || x.type === "gif");
+  return { text: t.raw_text?.text ?? t.text ?? "", handle: a.screen_name || "", name: a.name || "", avatar: a.avatar_url || "",
+    verified: !!(a.verification?.verified ?? a.verified), video: vid ? vid.url : null,
+    imgs: all.filter(x => x.type === "photo").map(x => x.url).filter(Boolean), quote: t.quote ? fxParse(t.quote) : null };
+}
+function vxParse(j){
+  const ext = j.media_extended || [], vid = ext.find(x => x.type === "video" || x.type === "gif");
+  return { text: j.text || "", handle: j.user_screen_name || "", name: j.user_name || "", avatar: j.user_profile_image_url || "",
+    verified: false, video: vid ? vid.url : null, imgs: ext.filter(x => x.type === "image").map(x => x.url), quote: j.qrt ? vxParse(j.qrt) : null };
+}
+async function fetchPost(p){
+  try {
+    const j = await getJSON(`https://api.fxtwitter.com/${p.handle}/status/${p.id}`);
+    if (!j.tweet) throw new Error("no post");
+    const t = fxParse(j.tweet); t.handle ||= p.handle; return t;
+  } catch(e) {
+    const t = vxParse(await getJSON(`https://api.vxtwitter.com/${p.handle}/status/${p.id}`)); t.handle ||= p.handle; return t;
+  }
+}
+function cleanText(t){
+  return String(t).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s*https?:\/\/t\.co\/\w+\s*$/g, "").replace(/[ \t]+\n/g, "\n").trim();
+}
+function bigUrl(u){
+  if (/pbs\.twimg\.com\/profile_images\//.test(u)) return u.replace(/_(normal|bigger|mini)(\.\w+)$/, "_400x400$2");
+  if (!/pbs\.twimg\.com\/media\//.test(u)) return u;
+  const base = u.split("?")[0].replace(/\.(jpg|jpeg|png|webp)$/i, ""), ext = (u.match(/\.(jpg|jpeg|png|webp)(\?|$)/i) || [, "jpg"])[1];
+  return `${base}?format=${ext}&name=large`;
+}
+// load an image so it can be drawn and still exported; fall back to a CORS-friendly image proxy
+function loadRemote(u){
+  const tryLoad = src => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  return tryLoad(bigUrl(u)).catch(() => tryLoad("https://wsrv.nl/?url=" + encodeURIComponent(u.split("?")[0]) + "&output=jpg&q=92"));
+}
+let importing = false, lastImported = "";
+async function importPost(){
+  const p = parseLink(S.link || ""); if (!p || importing) return;
+  importing = true; lastImported = p.id;
+  const b = $("#importBtn"); b.disabled = true; b.textContent = "Loading…"; status("Getting the post…");
+  try {
+    const t = await fetchPost(p);
+    S.headline = cleanText(t.text); S.hlWords = "";
+    if (t.quote) {
+      const q = t.quote;
+      S.qOn = true; S.qWho = "custom"; S.qName = q.name || ""; S.qUser = q.handle ? "@" + q.handle : ""; S.qVerified = !!q.verified; S.qText = cleanText(q.text || "");
+      [qAvatar, qImage] = await Promise.all([q.avatar ? loadRemote(q.avatar).catch(() => null) : null, q.imgs[0] ? loadRemote(q.imgs[0]).catch(() => null) : null]);
+    } else { S.qOn = false; qImage = null; }
+    save(); syncInputs(); refresh();
+    if (t.video) {
+      status("Downloading the video…");
+      try {
+        const r = await fetch(t.video); if (!r.ok) throw new Error("HTTP " + r.status);
+        const blob = await r.blob();
+        S.noVideo = false;
+        await setVideo(new File([blob], `${t.handle || p.handle}-${p.id}.mp4`, { type: blob.type || "video/mp4" }));
+        resetCrop(); resetTrim(); save(); refresh();
+        status(t.quote ? `Post loaded with its quote of @${t.quote.handle}. Check the headline, then export.` : "Done. Check the headline, then export.");
+      } catch(e) {
+        refresh();
+        status("Text loaded, but the video wouldn't download here. Tap Open post, save the video, then drop it in.");
+      }
+    } else if (t.imgs.length) {
+      status("Text loaded. This post has photos, not a video, so add a video or switch on No video.");
+    } else {
+      S.noVideo = true; save(); refresh();
+      status("Text loaded. This post has no video, so it's set to headline only.");
+    }
+  } catch(e) {
+    lastImported = "";
+    status("Couldn't get that post. It may be deleted, private or age-restricted, or the lookup service is down. Tap Open post and paste the text instead.");
+  } finally { importing = false; b.disabled = false; b.textContent = "Make it"; }
+}
+$("#link").addEventListener("input", e => {
+  S.link = e.target.value.trim(); save(); syncDetect();
+  const p = parseLink(S.link);
+  if (p && p.id !== lastImported) importPost();
+});
+$("#importBtn").onclick = () => {
+  if (!parseLink(S.link || "")) { status("That doesn't look like a post link. It should look like x.com/name/status/123…"); $("#link").focus(); return; }
+  lastImported = ""; importPost();
+};
+$("#pasteLink").onclick = async () => {
+  try { const t = await navigator.clipboard.readText(); $("#link").value = t; $("#link").dispatchEvent(new Event("input")); }
+  catch(e) { $("#link").focus(); status("Press and hold in the link box, then tap Paste."); }
+};
+$("#addCredit").onclick = () => {
+  const p = parseLink(S.link || ""); if (!p) return;
+  S.byline = "via @" + p.handle; S.creditOn = true; save(); syncInputs(); refresh();
+};
+$("#clearPost").onclick = () => {
+  S.link = ""; S.headline = ""; S.hlWords = ""; S.qOn = false; S.qText = ""; S.qName = ""; S.qUser = "";
+  if (/^via @/i.test(S.byline || "")) S.byline = "";
+  qImage = null; qAvatar = null; lastImported = "";
+  if (hasVideo) clearVideo();
+  save(); syncInputs(); refresh(); status("Cleared. Paste the next post link.");
+};
+// pasting a post link anywhere on the page (outside a text box) imports it
+document.addEventListener("paste", e => {
+  if (e.target.closest?.("input,textarea")) return;
+  const t = e.clipboardData?.getData("text") || "";
+  if (parseLink(t)) { e.preventDefault(); $("#link").value = t.trim(); $("#link").dispatchEvent(new Event("input")); }
+});
+
 // ---------- boot ----------
 applyMute(); refresh(); updatePlayBtn(); renderProfiles(); renderQueue(); renderAi(); renderTones(); renderRw();
+$("#link").value = S.link || ""; syncDetect();
 initAI();
 requestAnimationFrame(tick);
 document.fonts && document.fonts.ready.then(refresh);
